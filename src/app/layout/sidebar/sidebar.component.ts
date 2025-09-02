@@ -1,9 +1,7 @@
-
-
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { BreadcrumbService } from '../../core/services/breadcrumb-service.service';
-import { AuthService } from '../../features/auth/services/auth.service';
+import { AuthService, profil } from '../../features/auth/services/auth.service';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 
@@ -24,18 +22,29 @@ export class SidebarComponent implements OnInit, OnDestroy {
   // Subscription pour nettoyer les observables
   private subscriptions: Subscription = new Subscription();
 
+  // Base URL pour les images
+  baseUrl = 'https://wakana.online/repertoire_samater/';
+
+  // Propriété pour suivre l'état de chargement de l'image de profil
+  profileImageLoading = true;
+
   constructor(
     private router: Router,
     private breadcrumbService: BreadcrumbService,
-    public authService: AuthService // Injection du service d'authentification
+    public authService: AuthService
   ) {}
 
   ngOnInit(): void {
+    // Initialiser le menu actif selon le profil utilisateur
+    this.initializeActiveMenu();
+
     // Récupérer les informations utilisateur au chargement du composant
     if (this.authService.isAuthenticated()) {
       const userSubscription = this.authService.refreshUser().subscribe({
         next: (user) => {
           console.log('Utilisateur chargé dans la sidebar:', user);
+          // Réinitialiser le menu actif après le chargement de l'utilisateur
+          this.initializeActiveMenu();
         },
         error: (error) => {
           console.error('Erreur lors du chargement de l\'utilisateur:', error);
@@ -49,6 +58,60 @@ export class SidebarComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     // Nettoyer les subscriptions pour éviter les fuites mémoire
     this.subscriptions.unsubscribe();
+  }
+
+  /**
+   * Initialise le menu actif selon le profil de l'utilisateur
+   */
+  private initializeActiveMenu(): void {
+    if (this.isBETProfile()) {
+      // Pour les profils BET, défaut sur tableau de bord étude
+      this.activeMenu = 'dashboard-etude';
+    } else {
+      // Pour les autres profils, défaut sur dashboard principal
+      this.activeMenu = 'dashboard';
+    }
+  }
+
+  /**
+   * Vérifie si l'utilisateur connecté a un profil BET
+   * @returns boolean - true si l'utilisateur est BET, false sinon
+   */
+  isBETProfile(): boolean {
+    const user = this.authService.currentUser();
+    if (!user) {
+      return false;
+    }
+
+    // Vérifier si le profil est "BET" (string) ou si c'est un tableau contenant "BET"
+    if (typeof user.profil === 'string') {
+      return user.profil === 'BET';
+    } else if (Array.isArray(user.profil)) {
+      return user.profil.includes('BET' as any);
+    }
+
+    return false;
+  }
+
+  /**
+   * Obtient le profil de l'utilisateur pour l'affichage
+   * @returns string - Le profil de l'utilisateur ou une chaîne vide
+   */
+  getUserProfile(): string {
+    const user = this.authService.currentUser();
+    if (!user || !user.profil) {
+      return '';
+    }
+
+    // Gestion du profil string ou array
+    if (typeof user.profil === 'string') {
+      return user.profil;
+    } else if (Array.isArray(user.profil)) {
+      // Si plusieurs profils, les joindre avec une virgule
+      return user.profil.map(p => p.toString()).join(', ');
+    }
+
+    return '';
   }
 
   // Méthode pour basculer l'affichage du sous-menu des paramètres
@@ -65,7 +128,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.router.navigate([path]);
     
     // Mise à jour du fil d'Ariane
-    if (path === '/dashboard') {
+    if (path === '/dashboard' || path === '/dashboard-etude') {
       // Cas particulier pour Dashboard: on reset le fil d'Ariane à juste "Accueil"
       this.breadcrumbService.reset();
     } else {
@@ -93,57 +156,29 @@ export class SidebarComponent implements OnInit, OnDestroy {
   // Méthode pour gérer la déconnexion
   logout(): void {
     this.authService.logout();
-    this.router.navigate(['/login']); // Ajustez la route selon votre configuration
+    this.router.navigate(['/login']);
   }
 
   // Méthode pour obtenir l'URL de la photo de profil
-// base url pour les images 
-  baseUrl = 'https://wakana.online/repertoire_samater/';
-  // getProfileImageUrl(): string {
-
-  //   const user = this.authService.currentUser();
-  //   if (user && this.authService.hasUserPhoto()) {
-  //     return this.authService.getUserPhotoUrl();
-  //   }
-  //   return 'assets/images/profil.png'; // Image par défaut
-  // }
-
-  // getProfileImageUrl(): string {
-  //   const user = this.authService.currentUser();
-  //   if (user && user.photo) {
-  //     // Ajoutez le baseUrl devant le chemin de la photo
-  //     return this.baseUrl + user.photo;
-  //   }
-  //   return 'assets/images/profil.png'; // Image par défaut
-  // }
-
-
-  // Ajoutez cette propriété pour suivre l'état de chargement
-profileImageLoading = true;
-
-getProfileImageUrl(): string {
-  this.profileImageLoading = true;
-  const user = this.authService.currentUser();
-  
-  if (user?.photo) {
-    return `${this.baseUrl}${user.photo}?${new Date().getTime()}`; // Ajout d'un timestamp pour éviter le cache
+  getProfileImageUrl(): string {
+    this.profileImageLoading = true;
+    const user = this.authService.currentUser();
+    
+    if (user?.photo) {
+      return `${this.baseUrl}${user.photo}?${new Date().getTime()}`;
+    }
+    
+    return 'assets/images/profil.png';
   }
-  
-  return 'assets/images/profil.png';
-}
 
-onImageLoad(): void {
-  this.profileImageLoading = false;
-}
+  onImageLoad(): void {
+    this.profileImageLoading = false;
+  }
 
-// onImageError(event: any): void {
-//   console.warn('Erreur de chargement de la photo de profil');
-//   this.profileImageLoading = false;
-//   event.target.src = 'assets/images/profil.png';
-// }
   // Méthode pour gérer les erreurs de chargement d'image
   onImageError(event: any): void {
     console.warn('Erreur lors du chargement de la photo de profil, utilisation de l\'image par défaut');
+    this.profileImageLoading = false;
     event.target.src = 'assets/images/profil.png';
   }
 
@@ -152,16 +187,7 @@ onImageLoad(): void {
     return this.authService.getUserDisplayName();
   }
 
-  // Méthode pour obtenir le profil formaté
-  // getUserProfile(): string {
-  //   return this.authService.getFormattedUserProfile();
-  // }
-
-  // getProfileImageUrl(): string {
-  //   return this.authService.getUserPhotoUrl();
-  // }
-
-  // Méthodes pour accéder aux signals du service d'authentification
+  // Getters pour l'accès aux informations utilisateur
   get currentUser() {
     return this.authService.currentUser();
   }
@@ -183,13 +209,44 @@ onImageLoad(): void {
     return this.authService.getUserInitials();
   }
 
-  // Méthode pour vérifier si l'utilisateur a des permissions spéciales
-  // isAdmin(): boolean {
-  //   return this.authService.isAdmin();
-  // }
-
+  // Méthodes pour vérifier les profils (adaptées pour BET)
   isSiteManager(): boolean {
-    return this.authService.isSiteManager();
+    const user = this.authService.currentUser();
+    if (!user) return false;
+
+    if (typeof user.profil === 'string') {
+      return user.profil === 'SITE_MANAGER';
+    } else if (Array.isArray(user.profil)) {
+      return user.profil.some(p => p === profil.SITE_MANAGER);
+    }
+
+    return false;
+  }
+
+  isSupplier(): boolean {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+
+    if (typeof user.profil === 'string') {
+      return user.profil === 'SUPPLIER';
+    } else if (Array.isArray(user.profil)) {
+      return user.profil.some(p => p === profil.SUPPLIER);
+    }
+
+    return false;
+  }
+
+  isSubcontractor(): boolean {
+    const user = this.authService.currentUser();
+    if (!user) return false;
+
+    if (typeof user.profil === 'string') {
+      return user.profil === 'SUBCONTRACTOR';
+    } else if (Array.isArray(user.profil)) {
+      return user.profil.some(p => p === profil.SUBCONTRACTOR);
+    }
+
+    return false;
   }
 
   // Méthode pour obtenir des informations supplémentaires sur l'utilisateur
@@ -206,5 +263,16 @@ onImageLoad(): void {
   // Méthode pour vérifier si l'utilisateur est activé
   isUserActivated(): boolean {
     return this.authService.isUserActivated();
+  }
+
+  /**
+   * Méthode utilitaire pour debug - à supprimer en production
+   */
+  debugUserProfile(): void {
+    console.log('Current User:', this.currentUser);
+    console.log('Is BET Profile:', this.isBETProfile());
+    console.log('User Profile:', this.getUserProfile());
+    console.log('User Profil Type:', typeof this.currentUser?.profil);
+    console.log('User Profil Value:', this.currentUser?.profil);
   }
 }

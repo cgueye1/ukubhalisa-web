@@ -11,7 +11,7 @@
         </div>
         <div>
           <p class="font-bold text-base">{{ getUserDisplayName() }}</p>
-          <p class="text-sm"></p> 
+          <p class="text-sm">{{ getUserProfile() }}</p> 
         </div>
       </div>
       <button class="text-gray-700">
@@ -25,8 +25,8 @@
   <!-- Main Navigation -->
   <nav class="flex-1">
     <ul class="space-y-2">
-      <!-- Dashboard -->
-      <li>
+      <!-- Dashboard - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <a (click)="navigateTo('/dashboard', 'Tableau de bord', 'dashboard')" 
            [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
                    (isActive('dashboard') ? 'bg-[#FF5C02] text-white' : '')">
@@ -43,8 +43,44 @@
         </a>
       </li>
 
-      <!-- Projects Section -->
-      <li>
+      <!-- Dashboard Etude - Affiché seulement si BET -->
+      <li *ngIf="isBETProfile()">
+        <a (click)="navigateTo('/dashboard-etude', 'Tableau de bord Etude', 'dashboard-etude')" 
+           [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
+                   (isActive('dashboard-etude') ? 'bg-[#FF5C02] text-white' : '')">
+          <div class="flex items-center">
+            <img src="assets/images/home.png" 
+                 [class]="'w-[20px] h-[20px] mr-2 transition-all duration-200 ' + 
+                         (isActive('dashboard-etude') ? 'brightness-0 invert' : '')" 
+                 srcset="">
+            <span class="text-sm">Tableau de bord Etude</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </a>
+      </li>
+
+      <!-- Demandes - Affiché seulement si BET -->
+      <li *ngIf="isBETProfile()">
+        <a (click)="navigateTo('/demande', 'Demandes', 'demande')" 
+           [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
+                   (isActive('demande') ? 'bg-[#FF5C02] text-white' : '')">
+          <div class="flex items-center">
+            <img src="assets/images/home.png" 
+                 [class]="'w-[20px] h-[20px] mr-2 transition-all duration-200 ' + 
+                         (isActive('demande') ? 'brightness-0 invert' : '')" 
+                 srcset="">
+            <span class="text-sm">Demandes</span>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+          </svg>
+        </a>
+      </li>
+
+      <!-- Projects Section - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <a (click)="navigateTo('/projects', 'Projets', 'projects')" 
            [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
                    (isActive('projects') ? 'bg-[#FF5C02] text-white' : '')">
@@ -55,8 +91,8 @@
         </a>
       </li>
 
-      <!-- HR -->
-      <li>
+      <!-- HR - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <a (click)="navigateTo('/humanresources', 'Ressources humaines', 'hr')" 
            [class]="'flex items-center py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
                    (isActive('hr') ? 'bg-[#FF5C02] text-white' : '')">
@@ -68,8 +104,8 @@
         </a>
       </li>
 
-      <!-- Sous-traitant -->
-      <li>
+      <!-- Sous-traitant - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <a (click)="navigateTo('/subcontractor', 'Sous-traitants', 'subcontractor')" 
            [class]="'flex items-center py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
                    (isActive('subcontractor') ? 'bg-[#FF5C02] text-white' : '')">
@@ -81,7 +117,8 @@
         </a>
       </li>
 
-      <li>
+      <!-- Fournisseurs - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <a (click)="navigateTo('/fournisseur', 'Fournisseurs', 'suppliers')" 
            [class]="'flex items-center py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ' + 
                    (isActive('suppliers') ? 'bg-[#FF5C02] text-white' : '')">
@@ -93,8 +130,8 @@
         </a>
       </li>
 
-      <!-- Settings with Dropdown -->
-      <li>
+      <!-- Settings with Dropdown - Affiché seulement si pas BET -->
+      <li *ngIf="!isBETProfile()">
         <div>
           <!-- Menu principal Paramètres -->
           <a (click)="toggleParametres()" 
@@ -151,7 +188,7 @@
         </div>
       </li>
       
-      <!-- Logout Section -->
+      <!-- Logout Section - Toujours affiché -->
       <div class="mt-4">
         <a (click)="logout()" 
            class="flex items-center py-3 px-4 rounded-lg transition-all duration-200 cursor-pointer">
@@ -165,10 +202,5 @@
   </nav>
 
   <!-- Company Logo -->
-  <div class="flex items-center justify-center mt-auto">
-    <div class="text-black flex items-center">
-      <img src="assets/images/icon-logo.png" alt="" class="w-[50px] mr-2">
-      <h1 class="w-[181px] h-[22px] font-inter font-medium text-xl">Innovchantiers inc.</h1>
-    </div>
-  </div>
+
 </div>

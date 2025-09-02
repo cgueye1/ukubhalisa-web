@@ -14,7 +14,7 @@ export interface Report {
 
 export interface Etude {
   id: number;
-  title: string;
+  title: string;  
   description: string;
   status: string;
   createdAt: number[];
@@ -96,6 +96,18 @@ export class EtudeBetService {
     return this.http.get<EtudeResponse>(
       `${this.apiUrl}api/study-requests/property/${propertyId}`,
       { params }
+    );
+  }
+  /**
+   * Met à jour une étude existante
+   * @param etudeId ID de l'étude à modifier
+   * @param updateData Données de mise à jour
+   * @returns Observable<any>
+   */
+  updateEtude(etudeId: number, updateData: CreateEtudeRequest): Observable<any> {
+    return this.http.put(
+      `${this.apiUrl}api/study-requests/${etudeId}`,
+      updateData
     );
   }
 

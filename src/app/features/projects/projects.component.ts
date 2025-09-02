@@ -57,6 +57,8 @@ interface ProjectListState {
   currentPage: number;
   pageSize: number;
   hasMore: boolean;
+  allProjectsLoaded: boolean;
+  canLoadMore: boolean;
 }
 
 interface PaginationInfo {
@@ -65,6 +67,8 @@ interface PaginationInfo {
   currentPage: number;
   pageSize: number;
   hasMore: boolean;
+  loadedCount: number;
+  canLoadMore: boolean;
 }
 
 @Component({
@@ -95,19 +99,18 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   private apiImagesService = inject(RealestateService);
   private readonly authservice = inject(AuthService);
   
-  // CORRECTION 1: Initialisation avec une valeur par défaut
   promoterId: number = 0;
 
   @Input() project: any;
   filebaseUrl = "https://wakana.online/repertoire_chantier/";
 
-  // Configuration
-  private readonly DEFAULT_PAGE_SIZE = 10;
+  // Configuration pour pagination dynamique
+  private readonly DEFAULT_PAGE_SIZE = 2; // Changé à 2 pour charger par groupes de 2
   private readonly SEARCH_DEBOUNCE_TIME = 300;
   private readonly REQUEST_TIMEOUT = 15000;
   private readonly MAX_RETRIES = 2;
 
-  // Signals 
+  // Signals avec état de pagination amélioré
   private readonly stateSignal = signal<ProjectListState>({
     projects: [],
     loading: false,
@@ -116,7 +119,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     totalPages: 0,
     currentPage: 0,
     pageSize: this.DEFAULT_PAGE_SIZE,
-    hasMore: true
+    hasMore: true,
+    allProjectsLoaded: false,
+    canLoadMore: true
   });
 
   // Computed signals pour les vues
@@ -130,28 +135,22 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       totalPages: state.totalPages,
       currentPage: state.currentPage,
       pageSize: state.pageSize,
-      hasMore: state.hasMore
+      hasMore: state.hasMore,
+      loadedCount: state.projects.length,
+      canLoadMore: state.canLoadMore && !state.loading && !state.allProjectsLoaded
     };
-  });
-
-  // Formulaire et recherche
-  readonly searchForm = this.fb.group({
-    search: [''],
-    status: ['all'],
-    period: ['all']
   });
 
   // Subjects pour la gestion des événements
   private readonly searchSubject = new Subject<ProjectFilters>();
-  private readonly pageChangeSubject = new Subject<number>();
+  private readonly loadMoreSubject = new Subject<void>(); // Nouveau subject pour "Charger plus"
   private readonly refreshSubject = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
 
-  // Options de configuration
-  readonly pageSizeOptions = [5, 10, 20, 50] as const;
+  // Options de configuration dynamique
+  readonly pageSizeOptions = [2, 5, 10, 20] as const; // Commencer par 2
 
   constructor() {
-    // Effect pour surveiller les changements d'état 
     effect(() => {
       const state = this.stateSignal();
       if (state.error) {
@@ -173,11 +172,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // CORRECTION 2: Modification de l'ordre d'exécution
     this.getPromoteurConnecter();
   }
   
-  // CORRECTION 3: Amélioration de la méthode avec gestion d'erreur robuste
   getPromoteurConnecter(): void {
     this.updateState({ loading: true, error: null });
     
@@ -200,10 +197,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           this.promoterId = response.id;
           console.log("ID utilisateur connecté:", this.promoterId);
           
-          // CORRECTION 4: Charger les données après avoir obtenu l'ID
           this.loadInitialData();
           this.AfficherListeProjetByPrompter();
-          this.loadAllProjectsAndUpdateState(this.promoterId);
         } else {
           this.updateState({ 
             loading: false, 
@@ -226,7 +221,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  // ============ CONFIGURATION DES FLUX DE DONNÉES ============
+  // ============ CONFIGURATION DES FLUX DE DONNÉES POUR PAGINATION DYNAMIQUE ============
 
   private setupFormSubscription(): void {
     this.searchForm.valueChanges
@@ -241,48 +236,56 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   private setupDataFlow(): void {
-    // Flux principal combinant recherche, pagination et rafraîchissement
-    const dataFlow$ = merge(
-      // Recherche initiale
+    // Flux pour recherche initiale et rafraîchissement
+    const initialSearchFlow$ = merge(
       this.searchSubject.pipe(
         startWith(this.mapFormToFilters(this.searchForm.value)),
-        map(filters => ({ filters, page: 0, isRefresh: false }))
+        map(filters => ({ filters, page: 0, isRefresh: true, isLoadMore: false }))
       ),
       
-      // Changement de page
-      this.pageChangeSubject.pipe(
-        map(page => ({ 
-          filters: this.mapFormToFilters(this.searchForm.value), 
-          page, 
-          isRefresh: false 
-        }))
-      ),
-      
-      // Rafraîchissement
       this.refreshSubject.pipe(
         map(() => ({
           filters: this.mapFormToFilters(this.searchForm.value),
           page: 0,
-          isRefresh: true
+          isRefresh: true,
+          isLoadMore: false
         }))
       )
     );
 
-    dataFlow$
+    // Flux pour "Charger plus"
+    const loadMoreFlow$ = this.loadMoreSubject.pipe(
+      map(() => {
+        const state = this.stateSignal();
+        return {
+          filters: this.mapFormToFilters(this.searchForm.value),
+          page: state.currentPage + 1,
+          isRefresh: false,
+          isLoadMore: true
+        };
+      })
+    );
+
+    // Combinaison des flux
+    merge(initialSearchFlow$, loadMoreFlow$)
       .pipe(
         takeUntilDestroyed(),
-        tap(() => this.updateState({ loading: true, error: null })),
-        switchMap(({ filters, page, isRefresh }) => 
-          this.loadProjectsWithRetry(filters, page, isRefresh)
+        tap(({ isLoadMore }) => {
+          if (!isLoadMore) {
+            this.updateState({ loading: true, error: null });
+          } else {
+            this.updateState({ loading: true });
+          }
+        }),
+        switchMap(({ filters, page, isRefresh, isLoadMore }) => 
+          this.loadProjectsWithRetry(filters, page, isRefresh, isLoadMore)
         )
       )
       .subscribe();
   }
 
-  // CORRECTION 5: Amélioration de la méthode avec vérification de l'ID
   AfficherListeProjetByPrompter(): void {
     if (!this.promoterId || this.promoterId <= 0) {
-      
       console.warn("ID promoteur invalide:", this.promoterId);
       this.updateState({ 
         loading: false, 
@@ -300,7 +303,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         console.error("Erreur lors de la récupération des projets:", error);
         let errorMessage = "Erreur lors de la récupération des projets";
         
-        // CORRECTION 6: Gestion spécifique de l'erreur de parsing JSON
         if (error.error && typeof error.error === 'string' && error.error.includes('<!DOCTYPE')) {
           errorMessage = "Le serveur retourne du HTML au lieu de JSON. Vérifiez l'URL de l'API.";
         } else if (error.status === 0) {
@@ -319,16 +321,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (response) => {
         console.log('Liste des projets récupérée:', response);
-        // Traiter la réponse ici si nécessaire
         this.updateState({ loading: false });
       }
     });
   }
 
-  // ============ CHARGEMENT DES DONNÉES ============
+  // ============ CHARGEMENT DES DONNÉES AVEC PAGINATION DYNAMIQUE ============
 
   private loadInitialData(): void {
-    // CORRECTION 7: Vérifier que promoterId est défini avant de charger
     if (this.promoterId && this.promoterId > 0) {
       this.searchSubject.next(this.mapFormToFilters(this.searchForm.value));
     }
@@ -337,9 +337,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   private loadProjectsWithRetry(
     filters: ProjectFilters, 
     page: number, 
-    isRefresh: boolean = false
+    isRefresh: boolean = false,
+    isLoadMore: boolean = false
   ): Observable<void> {
-    // CORRECTION 8: Vérification de l'ID avant l'appel API
     if (!this.promoterId || this.promoterId <= 0) {
       console.warn("Tentative de chargement avec ID promoteur invalide:", this.promoterId);
       return of(void 0);
@@ -356,54 +356,117 @@ export class ProjectsComponent implements OnInit, OnDestroy {
             return timer(1000 * Math.pow(2, retryCount));
           }
         }),
-        map(response => this.processProjectsResponse(response, filters, page, isRefresh)),
+        map(response => this.processProjectsResponse(response, filters, page, isRefresh, isLoadMore)),
         catchError(error => this.handleLoadError(error)),
         finalize(() => this.updateState({ loading: false })),
         shareReplay(1)
       );
   }
 
-  // ============ LA MÉTHODE AVEC VALIDATION NULL SAFETY ============
+  // ============ TRAITEMENT DE LA RÉPONSE AVEC PAGINATION DYNAMIQUE ============
 
   private processProjectsResponse(
     response: PaginatedResponse<any>,
     filters: ProjectFilters,
     page: number,
-    isRefresh: boolean
+    isRefresh: boolean,
+    isLoadMore: boolean
   ): void {
-    const filteredProjects = this.filterProjectsLocally(response.content || [], filters);
+    const newProjects = this.filterProjectsLocally(response.content || [], filters);
     const currentState = this.stateSignal();
     
     let updatedProjects: any[];
+    let newCurrentPage = page;
     
-    if (page === 0 || isRefresh) {
-      updatedProjects = filteredProjects;
+    if (isRefresh || page === 0) {
+      // Nouveau chargement ou rafraîchissement
+      updatedProjects = newProjects;
+      newCurrentPage = 0;
+    } else if (isLoadMore) {
+      // Ajout de nouveaux projets à la liste existante
+      updatedProjects = [...currentState.projects, ...newProjects];
+      newCurrentPage = page;
     } else {
-      updatedProjects = [...currentState.projects, ...filteredProjects];
+      updatedProjects = newProjects;
     }
 
-    // Validation avec valeurs par défaut pour éviter les erreurs TypeScript
+    // Calcul des états de pagination
     const totalElements = response.totalElements ?? 0;
     const totalPages = response.totalPages ?? 0;
-    const hasMore = response.last !== undefined 
-      ? !response.last 
-      : (totalPages > 0 && page < totalPages - 1);
+    const loadedCount = updatedProjects.length;
+    
+    // Vérifier s'il y a encore des données à charger
+    const allProjectsLoaded = newProjects.length < this.stateSignal().pageSize || 
+                              loadedCount >= totalElements ||
+                              (response.last !== undefined && response.last);
+    
+    const canLoadMore = !allProjectsLoaded && totalElements > 0;
+    const hasMore = !allProjectsLoaded;
 
     this.updateState({
       projects: updatedProjects,
       totalElements,
       totalPages,
-      currentPage: page,
+      currentPage: newCurrentPage,
       hasMore,
+      allProjectsLoaded,
+      canLoadMore,
       loading: false,
       error: null
     });
+
+    console.log(`Page ${page} chargée: ${newProjects.length} nouveaux projets. Total: ${loadedCount}/${totalElements}. Peut charger plus: ${canLoadMore}`);
+  }
+
+  // ============ MÉTHODES PUBLIQUES POUR LA PAGINATION DYNAMIQUE ============
+
+  /**
+   * Charger plus de projets (pagination dynamique)
+   */
+  loadMoreProjects(): void {
+    const state = this.stateSignal();
+    if (state.canLoadMore && !state.loading && !state.allProjectsLoaded) {
+      this.loadMoreSubject.next();
+    }
+  }
+
+  /**
+   * Vérifier si on peut charger plus de projets
+   */
+  canLoadMore(): boolean {
+    return this.pagination().canLoadMore;
+  }
+
+  /**
+   * Changer la taille de page dynamiquement
+   */
+  changePageSize(newSize: number): void {
+    if (newSize > 0 && newSize !== this.stateSignal().pageSize) {
+      this.updateState({ 
+        pageSize: newSize,
+        currentPage: 0,
+        projects: [],
+        allProjectsLoaded: false,
+        canLoadMore: true,
+        hasMore: true
+      });
+      
+      // Recharger avec la nouvelle taille
+      this.searchSubject.next(this.mapFormToFilters(this.searchForm.value));
+    }
+  }
+
+  /**
+   * Obtenir les informations de pagination pour l'affichage
+   */
+  getPaginationInfo(): string {
+    const paginationInfo = this.pagination();
+    return `${paginationInfo.loadedCount} sur ${paginationInfo.totalElements} projets chargés`;
   }
 
   private handleLoadError(error: any): Observable<void> {
     let errorMessage = 'Une erreur inattendue s\'est produite.';
     
-    // CORRECTION 9: Amélioration de la détection d'erreur de parsing JSON
     if (error.error && typeof error.error === 'string' && error.error.includes('<!DOCTYPE')) {
       errorMessage = 'Le serveur retourne du HTML au lieu de JSON. Vérifiez la configuration de votre API.';
     } else if (error.name === 'TimeoutError') {
@@ -422,13 +485,42 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     
     this.updateState({
       loading: false,
-      error: errorMessage
+      error: errorMessage,
+      canLoadMore: false
     });
 
     return EMPTY;
   }
 
-  // ============ FILTRAGE ET TRANSFORMATION ============
+  // ============ GESTION D'ÉTAT ============
+
+  private resetPagination(): void {
+    this.updateState({
+      currentPage: 0,
+      projects: [],
+      totalElements: 0,
+      totalPages: 0,
+      hasMore: true,
+      allProjectsLoaded: false,
+      canLoadMore: true
+    });
+  }
+
+  private updateState(partialState: Partial<ProjectListState>): void {
+    this.stateSignal.update(currentState => ({
+      ...currentState,
+      ...partialState
+    }));
+  }
+
+  // ============ MÉTHODES EXISTANTES (inchangées) ============
+
+  // Formulaire et recherche
+  readonly searchForm = this.fb.group({
+    search: [''],
+    status: ['all'],
+    period: ['all']
+  });
 
   private mapFormToFilters = (formValue: any): ProjectFilters => ({
     search: formValue?.search?.trim() || undefined,
@@ -443,15 +535,12 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       if (filters.search && !this.matchesSearchTerm(project, filters.search)) {
         return false;
       }
-
       if (filters.status && !this.matchesStatus(project, filters.status)) {
         return false;
       }
-
       if (filters.period && !this.matchesPeriod(project, filters.period)) {
         return false;
       }
-
       return true;
     });
   }
@@ -502,90 +591,6 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     return new Date().getFullYear();
   }
 
-  // ============ GESTION D'ÉTAT ============
-
-  private updateState(partialState: Partial<ProjectListState>): void {
-    this.stateSignal.update(currentState => ({
-      ...currentState,
-      ...partialState
-    }));
-  }
-
-  private resetPagination(): void {
-    this.updateState({
-      currentPage: 0,
-      projects: [],
-      totalElements: 0,
-      totalPages: 0,
-      hasMore: true
-    });
-  }
-
-  private getProgressValue(project: any): number {
-    let progressValue = project?.averageProgress ?? project?.progress ?? 0;
-    const numProgress = Number(progressValue);
-    
-    if (isNaN(numProgress)) {
-      console.warn('Valeur de progression invalide:', progressValue, 'pour le projet:', project?.id);
-      return 0;
-    }
-    
-    return Math.max(0, Math.min(100, numProgress));
-  }
-
-  // ============ MÉTHODE POUR CHARGER TOUS LES PROJETS ============
-
-  private loadAllProjects(promoterId: number): Observable<any[]> {
-    const pageSize = 50;
-    
-    const loadPage = (page: number): Observable<any[]> => {
-      return this.realestateService.getAllProjectsPaginated(promoterId, page, pageSize).pipe(
-        switchMap(response => {
-          if (response.last || response.content.length < pageSize) {
-            return of(response.content);
-          } else {
-            return loadPage(page + 1).pipe(
-              map(nextPageContent => response.content.concat(nextPageContent))
-            );
-          }
-        })
-      );
-    };
-    
-    return loadPage(0);
-  }
-
-  // CORRECTION 10: Amélioration avec vérification de l'ID
-  private loadAllProjectsAndUpdateState(promoterId: number): void {
-    if (!promoterId || promoterId <= 0) {
-      console.warn("ID promoteur invalide pour charger tous les projets:", promoterId);
-      return;
-    }
-
-    this.isLoading = true;
-    this.errorMessage = '';
-
-    this.loadAllProjects(promoterId).pipe(
-      tap(projects => console.log('Tous les projets chargés:', projects)),
-      catchError(error => {
-        console.error('Erreur lors du chargement de tous les projets:', error);
-        this.errorMessage = 'Impossible de charger tous les projets.';
-        return of([]);
-      }),
-      finalize(() => {
-        this.isLoading = false;
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe({
-      next: (projects: any[]) => {
-        this.allProjects = projects;
-        console.log('Nombre total de projets chargés:', this.allProjects.length);
-      }
-    });
-  }
-
-  // ============ MÉTHODES PUBLIQUES ============
-
   onSearch(): void {
     this.searchSubject.next(this.mapFormToFilters(this.searchForm.value));
   }
@@ -598,22 +603,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
   }
 
-  onPageChange(page: number): void {
-    this.pageChangeSubject.next(page);
-  }
-
   onPageSizeChange(event: Event): void {
     const target = event.target as HTMLSelectElement;
     if (!target?.value) return;
-
     const size = parseInt(target.value, 10);
-    this.updateState({
-      pageSize: size,
-      currentPage: 0,
-      projects: []
-    });
-    
-    this.searchSubject.next(this.mapFormToFilters(this.searchForm.value));
+    this.changePageSize(size);
   }
 
   onRefresh(): void {
@@ -626,30 +620,16 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
   }
 
-  onScroll(event: Event): void {
-    const target = event.target as HTMLElement;
-    if (!target) return;
-
-    const threshold = 100;
-    const atBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - threshold;
-    const state = this.stateSignal();
-
-    if (atBottom && !state.loading && state.hasMore) {
-      this.onPageChange(state.currentPage + 1);
-    }
-  }
-
   onImageLoad(event: Event): void {
     console.log('Image chargée avec succès:', (event.target as HTMLImageElement).src);
   }
 
   onImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
-    img.src = 'assets/images/architecte.png'; // image fallback locale
+    img.src = 'assets/images/architecte.png';
   }
 
-  // ============ MÉTHODES UTILITAIRES POUR LE TEMPLATE ============
-
+  // Méthodes utilitaires pour le template
   trackByProjectId = (index: number, project: any): number => project.id;
 
   getStatusClass(project: any): string {
@@ -658,6 +638,134 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     if (project.progress > 0) return 'status-in-progress';
     return 'status-pending';
   }
+  // Dans votre composant
+getLoadingPercentage(): number {
+  return Math.round((this.pagination().loadedCount / this.pagination().totalElements) * 100);
+}
+
+// Remplacez les méthodes goToPreviousPage et goToNextPage existantes par celles-ci :
+
+// Remplacez les méthodes goToPreviousPage et goToNextPage existantes par celles-ci :
+
+goToPreviousPage(): void {
+  const currentState = this.stateSignal();
+  if (currentState.currentPage > 0) {
+    const targetPage = currentState.currentPage - 1;
+    console.log(`Navigation vers la page précédente: ${targetPage + 1}`);
+    this.loadSpecificPage(targetPage);
+  } else {
+    console.log("Déjà sur la première page");
+  }
+}
+
+goToNextPage(): void {
+  const currentState = this.stateSignal();
+  if (currentState.currentPage < currentState.totalPages - 1) {
+    const targetPage = currentState.currentPage + 1;
+    this.loadSpecificPage(targetPage);
+  }
+}
+
+// Nouvelle méthode pour charger une page spécifique
+private loadSpecificPage(page: number): void {
+  if (!this.promoterId || this.promoterId <= 0) {
+    console.warn("ID promoteur invalide:", this.promoterId);
+    return;
+  }
+
+  console.log(`Chargement de la page ${page + 1}...`);
+
+  // Mettre à jour l'état pour indiquer le chargement
+  this.updateState({ 
+    loading: true, 
+    error: null 
+  });
+
+  const filters = this.mapFormToFilters(this.searchForm.value);
+  
+  this.realestateService
+    .getAllProjectsPaginated(this.promoterId, page, this.stateSignal().pageSize)
+    .pipe(
+      timeout(this.REQUEST_TIMEOUT),
+      retry({
+        count: this.MAX_RETRIES,
+        delay: (error, retryCount) => {
+          console.warn(`Tentative ${retryCount + 1}/${this.MAX_RETRIES + 1} échouée:`, error.message);
+          return timer(1000 * Math.pow(2, retryCount));
+        }
+      }),
+      tap((response) => {
+        console.log(`Page ${page + 1} chargée avec succès, response:`, response);
+        this.processSpecificPageResponse(response, filters, page);
+      }),
+      catchError(error => this.handleLoadError(error)),
+      finalize(() => this.updateState({ loading: false })),
+      takeUntil(this.destroy$)
+    )
+    .subscribe({
+      next: () => {
+        console.log(`Navigation vers la page ${page + 1} terminée`);
+      },
+      error: (error) => {
+        console.error(`Erreur lors du chargement de la page ${page + 1}:`, error);
+      }
+    });
+}
+
+// Nouvelle méthode spécifique pour traiter la réponse d'une page donnée
+private processSpecificPageResponse(
+  response: PaginatedResponse<any>,
+  filters: ProjectFilters,
+  page: number
+): void {
+  const newProjects = this.filterProjectsLocally(response.content || [], filters);
+  
+  // Pour la navigation par pages, on remplace complètement les projets
+  const updatedProjects = newProjects;
+
+  // Calcul des états de pagination
+  const totalElements = response.totalElements ?? 0;
+  const totalPages = response.totalPages ?? 0;
+  
+  // Mise à jour de l'état avec la nouvelle page
+  this.updateState({
+    projects: updatedProjects,
+    totalElements,
+    totalPages,
+    currentPage: page,
+    hasMore: page < totalPages - 1,
+    allProjectsLoaded: false,
+    canLoadMore: false, // Désactiver le "charger plus" en mode pagination normale
+    loading: false,
+    error: null
+  });
+
+  console.log(`Page ${page + 1} traitée: ${updatedProjects.length} projets. Total: ${totalElements}, Pages: ${totalPages}`);
+}
+
+// Méthode utilitaire pour obtenir le nombre total de pages
+getTotalPages(): number {
+  return this.pagination().totalPages;
+}
+
+// Méthode utilitaire pour vérifier si on peut naviguer vers la page précédente
+canGoPrevious(): boolean {
+  return this.pagination().currentPage > 0;
+}
+
+// Méthode utilitaire pour vérifier si on peut naviguer vers la page suivante
+canGoNext(): boolean {
+  const pag = this.pagination();
+  return pag.currentPage < pag.totalPages - 1;
+}
+
+// Méthode pour aller directement à une page spécifique (utile pour une pagination numérotée)
+goToPage(page: number): void {
+  const currentState = this.stateSignal();
+  if (page >= 0 && page < currentState.totalPages && page !== currentState.currentPage) {
+    this.loadSpecificPage(page);
+  }
+}
 
   getProgressBarClass(progress: number): string {
     if (progress < 30) return 'progress-low';
@@ -666,12 +774,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   formatProgress = (progress: number): string => `${progress}%`;
-
-  getGradientBackground = (progress: number): string => 
-    'linear-gradient(90deg, #F39C12 0%, #FF5C02 100%)';
-
+  getGradientBackground = (progress: number): string => 'linear-gradient(90deg, #F39C12 0%, #FF5C02 100%)';
   safeGetValue = (value: any): any => value ?? null;
-  
-  isDefined = <T>(value: T | undefined | null): value is T => 
-    value !== undefined && value !== null;
+  isDefined = <T>(value: T | undefined | null): value is T => value !== undefined && value !== null;
 }

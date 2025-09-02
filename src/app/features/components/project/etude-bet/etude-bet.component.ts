@@ -16,7 +16,7 @@ interface EtudeBET {
   moaId: number;
   moaName: string;
   betId: number;
-  rapports?: { id: number; nom: string; taille: string; dateSubmission: string; url: string }[];
+  rapports?: { id: number; nom: string; taille: string; dateSubmission: string; url: string; versionNumber: number }[];
 }
 
 @Component({
@@ -47,27 +47,48 @@ export class EtudeBetComponent implements OnInit {
   showDetailModal = false;
   showValidateModal = false;
   showRejectModal = false;
+  showEditReportModal = false; // Nouveau modal pour éditer les rapports
   
   // Forms data
   selectedEtude: EtudeBET | null = null;
+  selectedReport: { id: number; nom: string; taille: string; dateSubmission: string; url: string; versionNumber: number } | null = null;
+  
   newEtude: CreateEtudeRequest = {
     title: '',
     description: '',
     propertyId: 0,
-    clientId: 1, // À adapter selon vos besoins
+    clientId: 1,
     betId: 0
   };
-  editEtude: Partial<EtudeBET> = {};
+  
+  editEtude: CreateEtudeRequest = {
+    title: '',
+    description: '',
+    propertyId: 0,
+    clientId: 1,
+    betId: 0
+  };
+
+  // Nouveau formulaire pour éditer un rapport
+  editReport: UpdateBetRequest = {
+    title: '',
+    file: '',
+    versionNumber: 1,
+    studyRequestId: 0,
+    authorId: 0
+  };
+  
   rejectReason: string = '';
 
-  // Available BETs for autocomplete (à adapter selon votre API)
+  // Available BETs for autocomplete
   availableBETs: { id: number, name: string }[] = [
     { id: 1, name: 'Sonora BET' },
     { id: 2, name: 'Alpha Dieye' },
     { id: 3, name: 'BET Structura' },
     { id: 4, name: 'ClimaTech' }
   ];
-Math: any;
+  
+  Math: any;
 
   constructor(
     private etudeBetService: EtudeBetService,
@@ -93,7 +114,7 @@ Math: any;
           this.etudes = this.transformEtudesFromAPI(response.content);
           this.totalElements = response.totalElements;
           this.totalPages = response.totalPages;
-          this.onSearch(); // Appliquer le filtre de recherche
+          this.onSearch();
           this.isLoading = false;
         },
         error: (error) => {
@@ -121,7 +142,8 @@ Math: any;
         nom: report.title,
         taille: this.getRandomSize(),
         dateSubmission: this.formatDate(report.submittedAt),
-        url: report.fileUrl
+        url: report.fileUrl,
+        versionNumber: report.versionNumber
       })) || []
     }));
   }
@@ -249,7 +271,14 @@ Math: any;
   }
 
   openEditModal(etude: EtudeBET) {
-    this.editEtude = { ...etude };
+    this.editEtude = {
+      title: etude.titre,
+      description: etude.description,
+      propertyId: etude.propertyId,
+      clientId: 1,
+      betId: etude.betId
+    };
+    this.selectedEtude = etude;
     this.showEditModal = true;
   }
 
@@ -269,13 +298,32 @@ Math: any;
     this.showRejectModal = true;
   }
 
+  // Nouvelle méthode pour ouvrir le modal d'édition de rapport
+  openEditReportModal(rapport: { id: number; nom: string; taille: string; dateSubmission: string; url: string; versionNumber: number }, etude: EtudeBET) {
+    this.selectedReport = rapport;
+    this.selectedEtude = etude;
+    
+    // Pré-remplir le formulaire avec les données du rapport
+    this.editReport = {
+      title: rapport.nom,
+      file: '', // À remplir par l'utilisateur si nécessaire
+      versionNumber: rapport.versionNumber + 1, // Incrémenter automatiquement la version
+      studyRequestId: etude.id, // ID de l'étude
+      authorId: this.currentPropertyId // Utiliser currentPropertyId comme authorId
+    };
+    
+    this.showEditReportModal = true;
+  }
+
   closeAllModals() {
     this.showCreateModal = false;
     this.showEditModal = false;
     this.showDetailModal = false;
     this.showValidateModal = false;
     this.showRejectModal = false;
+    this.showEditReportModal = false;
     this.selectedEtude = null;
+    this.selectedReport = null;
     this.rejectReason = '';
   }
 
@@ -299,10 +347,71 @@ Math: any;
   }
 
   updateEtude() {
-    // Note: Vous devrez adapter cette méthode selon votre API
-    // L'API actuelle ne semble pas avoir d'endpoint pour modifier une étude
-    console.log('Mise à jour non implémentée dans l\'API actuelle');
-    this.closeAllModals();
+    if (this.selectedEtude && this.editEtude.title && this.editEtude.description && this.editEtude.betId) {
+      this.isLoading = true;
+      
+      const updateRequest: CreateEtudeRequest = {
+        title: this.editEtude.title,
+        description: this.editEtude.description,
+        propertyId: this.editEtude.propertyId,
+        clientId: this.editEtude.clientId,
+        betId: this.editEtude.betId
+      };
+
+      this.etudeBetService.updateEtude(this.selectedEtude.id, updateRequest).subscribe({
+        next: (response) => {
+          console.log('Étude mise à jour avec succès:', response);
+          this.loadEtudes();
+          this.closeAllModals();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la mise à jour de l\'étude:', error);
+          this.isLoading = false;
+        }
+      });
+    }
+  }
+
+  // Nouvelle méthode pour mettre à jour un rapport
+  updateReport() {
+    if (this.selectedReport && this.editReport.title && this.editReport.studyRequestId) {
+      this.isLoading = true;
+      
+      // S'assurer que l'authorId est bien défini avec currentPropertyId
+      this.editReport.authorId = this.currentPropertyId;
+      
+      this.etudeBetService.updateBet(this.selectedReport.id, this.editReport).subscribe({
+        next: (response) => {
+          console.log('Rapport mis à jour avec succès:', response);
+          this.loadEtudes(); // Recharger les données
+          this.closeAllModals();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la mise à jour du rapport:', error);
+          this.isLoading = false;
+        }
+      });
+    }
+  }
+
+  // Méthode pour supprimer un rapport
+  deleteReport(rapport: { id: number; nom: string }, etude: EtudeBET) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le rapport "${rapport.nom}" ?`)) {
+      this.isLoading = true;
+      this.etudeBetService.deleteBet(rapport.id).subscribe({
+        next: (response) => {
+          console.log('Rapport supprimé avec succès');
+          this.loadEtudes(); // Recharger les données
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Erreur lors de la suppression du rapport:', error);
+          this.isLoading = false;
+        }
+      });
+    }
   }
 
   validateEtude() {
@@ -343,9 +452,7 @@ Math: any;
 
   deleteEtude(etude: EtudeBET) {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette étude ?')) {
-      // Note: L'API ne semble pas avoir d'endpoint pour supprimer une étude
-      // Seulement pour supprimer des rapports
-      console.log('Suppression non disponible dans l\'API actuelle');
+      console.log('Suppression d\'étude non disponible dans l\'API actuelle');
     }
   }
 
@@ -371,7 +478,6 @@ Math: any;
   addComment(etude: EtudeBET, comment: string) {
     if (comment.trim()) {
       console.log('Ajout de commentaire - fonctionnalité à implémenter');
-      // Cette fonctionnalité devra être ajoutée à l'API
     }
   }
 

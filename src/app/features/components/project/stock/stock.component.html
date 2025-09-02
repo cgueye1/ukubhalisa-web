@@ -377,11 +377,11 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="font-medium text-gray-900">
-                {{order.supplier?.prenom + '  ' + order.supplier?.nom || 'Fournisseur inconnu' }}
+                {{order.supplier.prenom + '  ' + order.supplier.nom || 'Fournisseur inconnu' }}
               </div>
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-              {{ order.materials?.length || 0 }} article{{ (order.materials?.length || 0) > 1 ? 's' : '' }}
+              {{ order.materials.length || 0 }} article{{ (order.materials.length || 0) > 1 ? 's' : '' }}
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               <div class="font-medium text-gray-900">

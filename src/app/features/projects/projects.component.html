@@ -114,131 +114,176 @@
     </button>
   </div>
 
-  <!-- Liste des projets avec scroll container -->
-  <div class="projects-container overflow-y-auto max-h-[800px]" (scroll)="onScroll($event)">
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-      <!-- Carte projet responsive -->
-      <div *ngFor="let project of projects(); trackBy: trackByProjectId" 
-           class="bg-white rounded-[10px] overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300 w-full max-w-[410px] mx-auto h-full"
-           [ngClass]="getStatusClass(project)"
-           (click)="onProjectClick(project)">
+<!-- Contrôles de pagination en haut -->
+<div class="mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+  <!-- Sélecteur de taille de page -->
+  <div class="flex items-center gap-2">
+    <label for="pageSize" class="text-sm font-medium text-gray-700">Projets par page:</label>
+    <select 
+      id="pageSize"
+      (change)="onPageSizeChange($event)" 
+      [value]="pagination().pageSize"
+      class="border border-gray-300 rounded px-2 py-1 text-sm">
+      <option value="2">2 projets</option>
+      <option value="5">5 projets</option>
+      <option value="10">10 projets</option>
+      <option value="20">20 projets</option>
+    </select>
+  </div>
 
-     <div class="h-40 sm:h-48 overflow-hidden">
-  <ng-container *ngIf="project; else loading">
-    <!-- <ng-container *ngIf="tabImagesApi.length > 0; else noImages">
-      <img
-        [src]="tabImagesApi[currentImageIndex]"
-        alt="Image du projet"
-        class="w-full h-full object-cover"
-        width="400"
-        (error)="onImageError($event)"
-        (load)="onImageLoad($event)"
-      />
-    </ng-container> -->
-
-    <div *ngIf="project.plan" class="mt-3 w-full h-full " >
-      <img 
-        [src]="project.plan"
-        (error)="onImageError($event)"
-        (load)="onImageLoad($event)"
-        alt="plan" 
-        class="w-full h-full object-cover rounded-lg">
-    </div>
-    
-    <!-- Aucun visuel disponible -->
-    <ng-template #noImages>
-      <div class="w-full h-full bg-gray-100 flex items-center justify-center">
-        <p class="text-gray-500 text-sm">Aucune image disponible</p>
-      </div>
-    </ng-template>
-  </ng-container>
-
-  <!-- Chargement en cours -->
-  <ng-template #loading>
-    <div class="w-full h-full bg-gray-200 flex items-center justify-center">
-      <img
-        src="assets/images/architecte.png"
-        alt="Chargement en cours..."
-        class="w-full h-full object-cover opacity-50"
-      />
-    </div>
-  </ng-template>
+  <!-- Informations de pagination -->
+  <div class="text-sm text-gray-600">
+    {{ getPaginationInfo() }}
+  </div>
 </div>
 
-        <!-- Informations du projet -->
-        <div class="p-3 sm:p-4 flex flex-col">
-          <h2 class="text-base sm:text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
-            {{ project.title }}
-          </h2>
-          
-          <!-- Info flex container responsive -->
-          <div class="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 mb-4">
-            <!-- Localisation -->
-            <div class="flex items-start">
-              <img src="assets/images/eva_pin-fill.png" alt="" class="mr-2 mt-1 flex-shrink-0">
-              <span class="text-gray-600 text-xs sm:text-sm line-clamp-1">
-                {{ project.location }}{{ project.address }}
-              </span>
-            </div>
-            
-            <!-- Période -->
-            <div class="flex items-center">
-              <img src="assets/images/Group.png" alt="" class="mr-2 mt-1 flex-shrink-0">
-              <span class="text-gray-600 text-xs sm:text-sm whitespace-nowrap">
-                <!-- {{ project.startDate   }}{{ project.endDate ? ' - ' + project.endDate : '' }} -->
-                {{ project.startDate[2] }}/{{ project.startDate[1] }}/{{ project.startDate[0] }}
-                -
-                {{ project.endDate[2] }}/{{ project.endDate[1] }}/{{ project.endDate[0] }}
-              </span>
-            </div>
-          </div>
-          
-          <!-- Barre de progression -->
-          <div class="mb-1">
-            <div class="flex justify-between items-center mb-1">
-              <span class="text-xs sm:text-sm font-medium text-gray-700">Progression</span>
-              <span class="text-xs sm:text-sm font-medium text-gray-700">{{ formatProgress(project.progress) }}</span>
-            </div>
-            <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                [style.width.%]="project.progress"
-                [ngStyle]="{ 'background': getGradientBackground(project.progress) }"
-                [ngClass]="getProgressBarClass(project.progress)"
-                class="h-full rounded-full transition-all duration-500">
-              </div>
-            </div>
-          </div>
 
+<!-- Liste des projets -->
+<div class="projects-container">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    <!-- Carte projet responsive -->
+    <div *ngFor="let project of projects(); trackBy: trackByProjectId" 
+         class="bg-white rounded-[10px] overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow duration-300 w-full max-w-[410px] mx-auto h-full"
+         [ngClass]="getStatusClass(project)"
+         (click)="onProjectClick(project)">
+
+      <div class="h-40 sm:h-48 overflow-hidden">
+        <ng-container *ngIf="project; else loading">
+          <div *ngIf="project.plan" class="mt-3 w-full h-full">
+            <img 
+              [src]="project.plan"
+              (error)="onImageError($event)"
+              (load)="onImageLoad($event)"
+              alt="plan" 
+              class="w-full h-full object-cover rounded-lg">
+          </div>
+          
+          <!-- Aucun visuel disponible -->
+          <div *ngIf="!project.plan" class="w-full h-full bg-gray-100 flex items-center justify-center">
+            <p class="text-gray-500 text-sm">Aucune image disponible</p>
+          </div>
+        </ng-container>
+
+        <!-- Chargement en cours -->
+        <ng-template #loading>
+          <div class="w-full h-full bg-gray-200 flex items-center justify-center">
+            <img
+              src="assets/images/architecte.png"
+              alt="Chargement en cours..."
+              class="w-full h-full object-cover opacity-50">
+          </div>
+        </ng-template>
+      </div>
+
+      <!-- Informations du projet -->
+      <div class="p-3 sm:p-4 flex flex-col">
+        <h2 class="text-base sm:text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
+          {{ project.title }}
+        </h2>
+        
+        <!-- Info flex container responsive -->
+        <div class="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 mb-4">
+          <!-- Localisation -->
+          <div class="flex items-start">
+            <img src="assets/images/eva_pin-fill.png" alt="" class="mr-2 mt-1 flex-shrink-0">
+            <span class="text-gray-600 text-xs sm:text-sm line-clamp-1">
+              {{ project.location }}{{ project.address }}
+            </span>
+          </div>
+          
+          <!-- Période -->
+          <div class="flex items-center">
+            <img src="assets/images/Group.png" alt="" class="mr-2 mt-1 flex-shrink-0">
+            <span class="text-gray-600 text-xs sm:text-sm whitespace-nowrap">
+              {{ project.startDate[2] }}/{{ project.startDate[1] }}/{{ project.startDate[0] }}
+              -
+              {{ project.endDate[2] }}/{{ project.endDate[1] }}/{{ project.endDate[0] }}
+            </span>
+          </div>
+        </div>
+        
+        <!-- Barre de progression -->
+        <div class="mb-1">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs sm:text-sm font-medium text-gray-700">Progression</span>
+            <span class="text-xs sm:text-sm font-medium text-gray-700">{{ formatProgress(project.progress) }}</span>
+          </div>
+          <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div 
+              [style.width.%]="project.progress"
+              [ngStyle]="{ 'background': getGradientBackground(project.progress) }"
+              [ngClass]="getProgressBarClass(project.progress)"
+              class="h-full rounded-full transition-all duration-500">
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  </div>
 
-    
-
-    <!-- Loading indicator -->
-    <div *ngIf="loading()" class="flex justify-center items-center py-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-    </div>
-
-    <!-- Message de fin -->
-    <div class="text-center py-4">
-      <div *ngIf="!pagination().hasMore && projects().length > 0" 
-           class="text-gray-500 text-sm">
-        Tous les projets ont été chargés ({{ pagination().totalElements }} projets)
-      </div>
-    </div>
-
-    <!-- No results message -->
-    <div *ngIf="projects().length === 0 && !loading()" 
-         class="text-center py-12">
-      <div class="text-gray-400 text-lg mb-2">Aucun projet trouvé</div>
-      <div class="text-gray-500 text-sm">Essayez de modifier vos critères de recherche</div>
-      <button (click)="onClearSearch()" 
-              class="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
-        Effacer les filtres
-      </button>
+  <!-- Loading indicator pendant le chargement -->
+  <div *ngIf="loading()" class="flex justify-center items-center py-8">
+    <div class="flex items-center gap-2">
+      <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+      <span class="text-gray-600">Chargement des projets...</span>
     </div>
   </div>
+
+  <!-- Navigation par flèches -->
+  <div *ngIf="!loading() && projects().length > 0" class="flex justify-center items-center py-6 gap-4">
+    <!-- Flèche précédente -->
+  <!-- Flèche précédente -->
+<button 
+(click)="goToPreviousPage()"
+[disabled]="pagination().currentPage === 0"
+[ngClass]="{
+  'opacity-50 cursor-not-allowed': pagination().currentPage === 0,
+  'hover:bg-orange-100 hover:border-orange-500': pagination().currentPage > 0
+}"
+class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white transition-all duration-200">
+<svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+</svg>
+</button>
+
+    <!-- Informations de pagination -->
+    <div class="flex flex-col items-center text-sm text-gray-600">
+      <span class="font-medium">
+        Page {{ pagination().currentPage + 1 }} sur {{ pagination().totalPages }}
+      </span>
+      <span class="text-xs">
+        {{ pagination().currentPage * pagination().pageSize + 1 }} - 
+        {{ getLoadingPercentage() }}% des projets chargés
+        sur {{ pagination().totalElements }} projets
+      </span>
+    </div>
+
+    <!-- Flèche suivante -->
+    <button 
+      (click)="goToNextPage()"
+      [disabled]="pagination().currentPage >= pagination().totalPages - 1"
+      [ngClass]="{
+        'opacity-50 cursor-not-allowed': pagination().currentPage >= pagination().totalPages - 1,
+        'hover:bg-orange-100 hover:border-orange-500': pagination().currentPage < pagination().totalPages - 1
+      }"
+      class="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white transition-all duration-200">
+      <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- No results message -->
+  <div *ngIf="projects().length === 0 && !loading()" 
+       class="text-center py-12">
+    <div class="text-gray-400 text-lg mb-2">Aucun projet trouvé</div>
+    <div class="text-gray-500 text-sm">Essayez de modifier vos critères de recherche</div>
+    <button (click)="onClearSearch()" 
+            class="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
+      Effacer les filtres
+    </button>
+  </div>
+</div>  
 
   <!-- Pagination info -->
   <div class="mt-6 flex justify-between items-center text-sm text-gray-600">

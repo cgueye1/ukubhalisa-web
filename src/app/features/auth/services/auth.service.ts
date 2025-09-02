@@ -153,7 +153,7 @@ export class AuthService {
   private _isAuthenticated = signal(false);
   private _token = signal<string | null>(null);
 
-  // Signaux en lecture seule pour les composants
+  // Signaux en lecture seule pour les composants   
   currentUser = this._currentUser.asReadonly();
   isAuthenticated = this._isAuthenticated.asReadonly();
   
@@ -633,4 +633,6 @@ export class AuthService {
 
     return errors;
   }
+
+  
 }
