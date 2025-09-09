@@ -1,6 +1,8 @@
 <div class="flex justify-between items-center mb-6">
   <h2 class="text-2xl font-bold text-gray-800">Les acteurs du chantier</h2>
-  <button class="flex items-center px-5 py-2 bg-white border border-gray-300 rounded-full shadow-sm hover:bg-gray-50">
+  <button 
+    (click)="openAddMemberModal()"
+    class="flex items-center px-5 py-2 bg-white border border-gray-300 rounded-full shadow-sm hover:bg-gray-50">
     <span class="mr-2 text-xl">+</span>
     <span>Ajouter un membre</span>
   </button>
@@ -47,8 +49,7 @@
             <img 
               [src]="member.avatar" 
               [alt]="member.name" 
-              class="w-full h-full object-cover"
-             >
+              class="w-full h-full object-cover">
           </div>
           <span class="font-medium text-gray-900">{{ member.name }}</span>
         </div>
@@ -110,6 +111,169 @@
           Suivant
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal d'ajout de membre -->
+<div 
+  *ngIf="showAddMemberModal" 
+  class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+  (click)="onBackdropClick($event)">
+  
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <!-- Modal Header -->
+    <div class="flex justify-between items-center p-6 border-b border-gray-200">
+      <h2 class="text-xl font-semibold text-gray-800">Ajouter un nouveau membre</h2>
+      <button 
+        (click)="closeAddMemberModal()" 
+        class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="p-6 space-y-4">
+      <!-- Messages d'erreur/succès -->
+      <div *ngIf="submitError" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        {{ submitError }}
+      </div>
+      
+      <div *ngIf="submitSuccess" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        {{ submitSuccess }}
+      </div>
+
+      <!-- Formulaire d'ajout -->
+      <form (ngSubmit)="submitAddMember()" #addMemberForm="ngForm">
+        <!-- Nom et Prénom -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label for="nom" class="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+            <input 
+              type="text" 
+              id="nom"
+              [(ngModel)]="newMember.nom"
+              name="nom"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Nom">
+          </div>
+          <div>
+            <label for="prenom" class="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+            <input 
+              type="text" 
+              id="prenom"
+              [(ngModel)]="newMember.prenom"
+              name="prenom"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Prénom">
+          </div>
+        </div>
+
+        <!-- Email et Téléphone -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+            <input 
+              type="email" 
+              id="email"
+              [(ngModel)]="newMember.email"
+              name="email"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="email@exemple.com">
+          </div>
+          <div>
+            <label for="telephone" class="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+            <input 
+              type="tel" 
+              id="telephone"
+              [(ngModel)]="newMember.telephone"
+              name="telephone"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="77 123 45 67">
+          </div>
+        </div>
+
+        <!-- Date de naissance et Lieu de naissance -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label for="date" class="block text-sm font-medium text-gray-700 mb-2">Date de naissance *</label>
+            <input 
+              type="date" 
+              id="date"
+              [(ngModel)]="newMember.date"
+              name="date"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+          </div>
+          <div>
+            <label for="lieunaissance" class="block text-sm font-medium text-gray-700 mb-2">Lieu de naissance *</label>
+            <input 
+              type="text" 
+              id="lieunaissance"
+              [(ngModel)]="newMember.lieunaissance"
+              name="lieunaissance"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Ville de naissance">
+          </div>
+        </div>
+
+        <!-- Adresse -->
+        <div class="mb-4">
+          <label for="adress" class="block text-sm font-medium text-gray-700 mb-2">Adresse *</label>
+          <input 
+            type="text" 
+            id="adress"
+            [(ngModel)]="newMember.adress"
+            name="adress"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="Adresse complète">
+        </div>
+
+        <!-- Mot de passe -->
+        <div class="mb-6">
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Mot de passe *</label>
+          <input 
+            type="password" 
+            id="password"
+            [(ngModel)]="newMember.password"
+            name="password"
+            required
+            minlength="6"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="Mot de passe (minimum 6 caractères)">
+        </div>
+
+        <!-- Actions du formulaire -->
+        <div class="flex justify-end gap-3 pt-4 border-t">
+          <button 
+            type="button"
+            (click)="closeAddMemberModal()"
+            class="px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+            Annuler
+          </button>
+          <button 
+            type="submit"
+            [disabled]="isSubmitting"
+            class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <span *ngIf="isSubmitting" class="flex items-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Ajout...
+            </span>
+            <span *ngIf="!isSubmitting">Ajouter</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

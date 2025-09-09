@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UtilisateurService, Worker, WorkersResponse } from '../../../services/utilisateur.service';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UtilisateurService, Worker, WorkersResponse, CreateWorkerRequest } from '../../../services/utilisateur.service';
+import { AuthService } from './../../features/auth/services/auth.service';
 
 interface TeamMember {
   id: number;
@@ -15,7 +17,7 @@ interface TeamMember {
 @Component({
   selector: 'app-team-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './team-list.component.html',
   styleUrls: ['./team-list.component.css']
 })
@@ -28,7 +30,28 @@ export class TeamListComponent implements OnInit {
   isLoading = false;
   error: string | null = null;
 
-  constructor(private utilisateurService: UtilisateurService) {}
+  // Variables pour le popup d'ajout
+  showAddMemberModal = false;
+  newMember: any = {
+    nom: '',
+    prenom: '',
+    email: '',
+    password: '',
+    telephone: '',
+    date: '',
+    lieunaissance: '',
+    adress: '',
+    profil: 'WORKER',
+    confirmPassword: ''
+  };
+  isSubmitting = false;
+  submitError: string | null = null;
+  submitSuccess: string | null = null;
+
+  constructor(
+    private utilisateurService: UtilisateurService,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
     this.loadTeamMembers();
@@ -55,8 +78,6 @@ export class TeamListComponent implements OnInit {
         console.error('Erreur lors du chargement des utilisateurs:', error);
         this.error = 'Erreur lors du chargement des membres de l\'équipe';
         this.isLoading = false;
-        // En cas d'erreur, on peut garder les données de test
-        this.loadTestData();
       }
     });
   }
@@ -194,65 +215,181 @@ export class TeamListComponent implements OnInit {
   }
 
   /**
-   * Charge des données de test en cas d'erreur
-   */
-  private loadTestData(): void {
-    this.teamMembers = [
-      {
-        id: 1,
-        name: 'Alpha Dieye',
-        role: 'Maître d\'ouvrage',
-        phone: '706458792',
-        address: 'Medina, Dakar',
-        email: 'contact@immobilieralpha.sn',
-        avatar: 'assets/images/av3.png'
-      },
-      {
-        id: 2,
-        name: 'Maguette Ndiaye',
-        role: 'Maître d\'œuvre',
-        phone: '777178294',
-        address: 'Yoff,Dakar',
-        email: 'maguette@gmail.com',
-        avatar: 'assets/images/av6.png'
-      },
-      {
-        id: 3,
-        name: 'Aziz Diop',
-        role: 'Ouvrier',
-        phone: '786547890',
-        address: 'Grand Mbao, Rufisque',
-        email: 'aziz@gmail.com',
-        avatar: 'assets/images/av1.svg'
-      },
-      {
-        id: 4,
-        name: 'Lamine Niang',
-        role: 'Chef de chantier',
-        phone: '776453281',
-        address: 'Thiaroye, Dakar',
-        email: 'lamine@gmail.com',
-        avatar: 'assets/images/av2.svg'
-      },
-      {
-        id: 5,
-        name: 'Youssoupha Dieme',
-        role: 'Ouvrier',
-        phone: '775431629',
-        address: 'Medina, Dakar',
-        email: 'youssoupha@gmail.com',
-        avatar: 'assets/images/av9.svg'
-      }
-    ];
-    this.totalElements = this.teamMembers.length;
-    this.totalPages = 1;
-  }
-
-  /**
    * Recharge les données
    */
   refresh(): void {
     this.currentPage = 1;
     this.loadTeamMembers();
+  }
+
+  /**
+   * Ouvre le modal d'ajout de membre
+   */
+  openAddMemberModal(): void {
+    this.showAddMemberModal = true;
+    this.resetNewMemberForm();
+  }
+
+  /**
+   * Ferme le modal d'ajout de membre
+   */
+  closeAddMemberModal(): void {
+    this.showAddMemberModal = false;
+    this.resetNewMemberForm();
+  }
+
+  /**
+   * Réinitialise le formulaire d'ajout de membre
+   */
+  private resetNewMemberForm(): void {
+    this.newMember = {
+      nom: '',
+      prenom: '',
+      email: '',
+      password: '',
+      telephone: '',
+      date: '',
+      lieunaissance: '',
+      adress: '',
+      profil: 'WORKER',
+    };
+    this.submitError = null;
+    this.submitSuccess = null;
+  }
+
+  /**
+   * Valide le formulaire d'ajout de membre
+   */
+  private validateForm(): boolean {
+    if (!this.newMember.nom.trim()) {
+      this.submitError = 'Le nom est requis';
+      return false;
+    }
+    if (!this.newMember.prenom.trim()) {
+      this.submitError = 'Le prénom est requis';
+      return false;
+    }
+    if (!this.newMember.email.trim()) {
+      this.submitError = 'L\'email est requis';
+      return false;
+    }
+    if (!this.isValidEmail(this.newMember.email)) {
+      this.submitError = 'L\'email n\'est pas valide';
+      return false;
+    }
+    if (!this.newMember.password) {
+      this.submitError = 'Le mot de passe est requis';
+      return false;
+    }
+    if (this.newMember.password.length < 6) {
+      this.submitError = 'Le mot de passe doit contenir au moins 6 caractères';
+      return false;
+    }
+    if (!this.newMember.telephone.trim()) {
+      this.submitError = 'Le téléphone est requis';
+      return false;
+    }
+    if (!this.newMember.date) {
+      this.submitError = 'La date de naissance est requise';
+      return false;
+    }
+    if (!this.newMember.lieunaissance.trim()) {
+      this.submitError = 'Le lieu de naissance est requis';
+      return false;
+    }
+    if (!this.newMember.adress.trim()) {
+      this.submitError = 'L\'adresse est requise';
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Valide le format d'email
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  /**
+   * Formate la date pour l'API (convertit YYYY-MM-DD vers DD-MM-YYYY)
+   */
+  private formatDateForAPI(dateString: string): string {
+    if (!dateString) return '';
+    
+    // Si la date est déjà au format DD-MM-YYYY, la retourner telle quelle
+    if (dateString.match(/^\d{2}-\d{2}-\d{4}$/)) {
+      return dateString;
+    }
+    
+    // Si la date est au format YYYY-MM-DD (format HTML date input), la convertir
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}-${month}-${year}`;
+    }
+    
+    return dateString;
+  }
+
+  /**
+   * Soumet le formulaire d'ajout de membre
+   */
+  submitAddMember(): void {
+    if (!this.validateForm()) {
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.submitError = null;
+    this.submitSuccess = null;
+
+    // Préparer les données pour l'API selon le format exact requis
+    const userData = {
+      nom: this.newMember.nom.trim(),
+      prenom: this.newMember.prenom.trim(),
+      email: this.newMember.email.trim(),
+      password: this.newMember.password,
+      telephone: this.newMember.telephone.trim(),
+      date: this.formatDateForAPI(this.newMember.date),
+      lieunaissance: this.newMember.lieunaissance.trim(),
+      adress: this.newMember.adress.trim(),
+      profil: this.newMember.profil
+    };
+
+    // Appeler le service pour créer l'utilisateur
+    this.utilisateurService.createUser(userData).subscribe({
+      next: (response) => {
+        this.isSubmitting = false;
+        this.submitSuccess = 'Membre ajouté avec succès!';
+        
+        // Recharger la liste des membres après un court délai
+        setTimeout(() => {
+          this.closeAddMemberModal();
+          this.loadTeamMembers();
+        }, 1500);
+      },
+      error: (error) => {
+        this.isSubmitting = false;
+        console.error('Erreur lors de la création du membre:', error);
+        
+        if (error.status === 400) {
+          this.submitError = 'Données invalides. Vérifiez les informations saisies.';
+        } else if (error.status === 409) {
+          this.submitError = 'Un utilisateur avec cet email existe déjà.';
+        } else {
+          this.submitError = 'Erreur lors de l\'ajout du membre. Veuillez réessayer.';
+        }
+      }
+    });
+  }
+
+  /**
+   * Gère le clic sur le backdrop du modal
+   */
+  onBackdropClick(event: Event): void {
+    if (event.target === event.currentTarget) {
+      this.closeAddMemberModal();
+    }
   }
 }

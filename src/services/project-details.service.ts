@@ -9,6 +9,16 @@
     consumedBudget: number;
     remainingBudget: number;
   }
+  export interface CreateTaskRequest {
+    title: string;
+    description: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    startDate: string; // Format: MM-DD-YYYY
+    endDate: string;   // Format: MM-DD-YYYY
+    realEstatePropertyId: number;
+    executorIds: number[];
+    pictures: string[]; // Tableau de base64 strings
+  }
 
   export interface ProgressAlbum {
     id: number;
@@ -445,7 +455,7 @@ export class ProjectBudgetService {
     
     return new HttpHeaders({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
     });
   }
 
@@ -473,7 +483,55 @@ export class ProjectBudgetService {
     
     return throwError(errorMessage);
   }
-
+  createTask(taskData: CreateTaskRequest): Observable<any> {
+    const headers = this.getAuthHeaders(true); // true pour FormData (sans Content-Type)
+    
+    // Créer un FormData pour l'envoi multipart
+    const formData = new FormData();
+    
+    // Ajouter les champs texte
+    formData.append('title', taskData.title);
+    formData.append('description', taskData.description);
+    formData.append('priority', taskData.priority);
+    formData.append('startDate', taskData.startDate);
+    formData.append('endDate', taskData.endDate);
+    formData.append('realEstatePropertyId', taskData.realEstatePropertyId.toString());
+    
+    // Ajouter les executors (IDs) - format correct pour l'API
+    taskData.executorIds.forEach((executorId) => {
+      formData.append('executorIds', executorId.toString());
+    });
+    
+    // Ajouter les images (format correct pour l'API)
+    if (taskData.pictures && taskData.pictures.length > 0) {
+      taskData.pictures.forEach((pictureBase64: string) => {
+        // L'API attend directement les strings base64, pas des fichiers Blob
+        formData.append('pictures', pictureBase64);
+      });
+    }
+    
+    console.log('Envoi FormData pour tâche avec:', {
+      title: taskData.title,
+      description: taskData.description,
+      priority: taskData.priority,
+      startDate: taskData.startDate,
+      endDate: taskData.endDate,
+      realEstatePropertyId: taskData.realEstatePropertyId,
+      executorIds: taskData.executorIds,
+      pictureCount: taskData.pictures ? taskData.pictures.length : 0
+    });
+    console.log(headers, formData);
+    return this.http.post<any>(
+      `${this.baseUrl}/tasks`, // URL corrigée sans double /api
+      formData,
+      { headers }
+    ).pipe(
+      catchError((error) => {
+        console.error('Erreur détaillée lors de la création de tâche:', error);
+        return this.handleError(error);
+      })
+    );
+  }
   // Méthode utilitaire pour convertir base64 en Blob
   private base64ToBlob(base64: string): Blob {
     try {

@@ -36,8 +36,10 @@ export enum UserProfile {
   SITE_MANAGER = 'SITE_MANAGER',
   SUPPLIER = 'SUPPLIER',
   SUBCONTRACTOR = 'SUBCONTRACTOR',
-  USER = 'USER'
+  USER = 'USER',
+  BET = 'BET'
 }
+
 export enum profil {
   SITE_MANAGER = 'SITE_MANAGER',
   SUBCONTRACTOR = 'SUBCONTRACTOR',
@@ -56,13 +58,14 @@ export interface User {
   password: string;
   adress: string;
   technicalSheet: string | null;
-  profil: profil[];
+  profil: profil[]; // ⚠️ CORRECTION: array de profils
+  profils: string; // ⚠️ AJOUT: propriété pour l'API qui envoie "profils" comme string
   activated: boolean;
   notifiable: boolean;
   telephone: string;
   subscriptions: Subscription[];
   company: any | null;
-  createdAt: number[]; // [year, month, day, hour, minute, second, nanosecond]
+  createdAt: number[];
   funds: number;
   note: number;
   photo: string | null;
@@ -94,7 +97,6 @@ export interface RegistrationData {
 
 // Configuration des profils avec leurs propriétés
 export interface ProfileConfig {
-[x: string]: any;
   key: profil;
   label: string;
   description: string;
@@ -110,42 +112,28 @@ export class AuthService {
   private userApiUrl = 'https://wakana.online/api/v1/user';
   
   // Configuration des profils disponibles
-  private readonly profilesConfig: any[] = [
-    // {
-    //   key: profil.ADMIN,
-    //   label: 'Administrateur',
-    //   description: 'Accès complet au système',
-    //   icon: 'admin-icon',
-    //   permissions: ['FULL_ACCESS']
-    // },
+  private readonly profilesConfig: ProfileConfig[] = [
     {
       key: profil.SITE_MANAGER,
       label: 'Gestionnaire de Site',
       description: 'Gestion des sites et équipes',
       icon: 'manager-icon',
-      permissions: ['SITE_MANAGEMENT', 'TEAM_MANAGEMENT']
+      permissions: ['SITE_MANAGEMENT', 'TEAM_MANAGEMENT', 'REPORT_CREATE', 'REPORT_VIEW']
     },
     {
       key: profil.SUPPLIER,
       label: 'Fournisseur',
       description: 'Fourniture de matériaux et services',
       icon: 'supplier-icon',
-      permissions: ['SUPPLY_MANAGEMENT', 'INVENTORY_ACCESS']
+      permissions: ['SUPPLY_MANAGEMENT', 'INVENTORY_ACCESS', 'REPORT_VIEW']
     },
     {
       key: profil.SUBCONTRACTOR,
       label: 'Sous-traitant',
       description: 'Exécution de travaux spécialisés',
       icon: 'subcontractor-icon',
-      permissions: ['PROJECT_ACCESS', 'TASK_MANAGEMENT']
-    },
-    // {
-    //   key: profil.USER,
-    //   label: 'Utilisateur',
-    //   description: 'Accès de base au système',
-    //   icon: 'user-icon',
-    //   permissions: ['BASIC_ACCESS']
-    // }
+      permissions: ['PROJECT_ACCESS', 'TASK_MANAGEMENT', 'REPORT_CREATE', 'REPORT_VIEW']
+    }
   ];
   
   // Signals pour l'état d'authentification
@@ -157,15 +145,17 @@ export class AuthService {
   currentUser = this._currentUser.asReadonly();
   isAuthenticated = this._isAuthenticated.asReadonly();
   
-  // Computed signals pour les informations utilisateur
-  userProfile = computed(() => this._currentUser()?.profil || null);
+  // ✅ CORRECTION: Computed signals pour les informations utilisateur
+  userProfile = computed(() => {
+    const user = this._currentUser();
+    return user?.profil && user.profil.length > 0 ? user.profil : null;
+  });
+
   userFullName = computed(() => {
     const user = this._currentUser();
     return user ? `${user.prenom} ${user.nom}` : null;
   });
-  
 
-  
   isUserActivated = computed(() => this._currentUser()?.activated || false);
   isUserEnabled = computed(() => this._currentUser()?.enabled || false);
   
@@ -179,6 +169,7 @@ export class AuthService {
   // Computed signals pour les informations de compte
   userFunds = computed(() => this._currentUser()?.funds || 0);
   userNote = computed(() => this._currentUser()?.note || 0);
+  
   isAccountValid = computed(() => {
     const user = this._currentUser();
     return user ? 
@@ -189,73 +180,115 @@ export class AuthService {
       user.activated : false;
   });
 
-  // Computed signal pour les permissions basées sur le profil
-  userPermissions = computed(() => {
-    const profile = this.userProfile();
-    if (!profile) return [];
+  isBETProfile(): boolean {
+    const user = this.currentUser();
+    if (!user) {
+      return false;
+    }
     
-    const config = this.profilesConfig.find(p => p.key === profile);
-    return config?.permissions || [];
+    console.log("profil du User connecté", user.profil);
+    console.log("profils du User connecté", user.profils);
+    
+    // Vérifier d'abord la propriété "profils" (string) de l'API
+    if (user.profils && typeof user.profils === 'string') {
+      return user.profils === 'BET';
+    }
+    
+    // Ensuite vérifier la propriété "profil" (array) de l'interface
+    if (user.profil && Array.isArray(user.profil)) {
+      return user.profil.includes('BET' as any);
+    }
+    
+    // Vérifier aussi si "profil" est une string
+    if (user.profil && typeof user.profil === 'string') {
+      return user.profil === 'BET';
+    }
+    
+    return false;
+  }
+  
+
+  // ✅ CORRECTION: Computed signal pour les permissions basées sur les profils (array)
+  userPermissions = computed(() => {
+    const profiles = this.userProfile();
+    if (!profiles || profiles.length === 0) return [];
+    
+    const allPermissions: string[] = [];
+    profiles.forEach(profile => {
+      const config = this.profilesConfig.find(p => p.key === profile);
+      if (config?.permissions) {
+        allPermissions.push(...config.permissions);
+      }
+    });
+    
+    // Retourner les permissions uniques
+    return [...new Set(allPermissions)];
   });
+  userState$: any;
 
   constructor(
     private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    // Vérifier s'il y a un token stocké au démarrage
     this.initializeAuthState();
   }
 
   private initializeAuthState(): void {
-    // Vérifier si on est côté client avant d'utiliser localStorage
     if (isPlatformBrowser(this.platformId)) {
       const storedToken = localStorage.getItem('token');
       
-      if (storedToken) {
+      if (storedToken && this.isTokenValidFormat(storedToken)) {
         this._token.set(storedToken);
         this._isAuthenticated.set(true);
         
-        // Récupérer les informations utilisateur fraîches depuis l'API
-        this.getCurrentUser().subscribe({
-          next: (user) => {
-            this._currentUser.set(user);
-            console.log('Utilisateur récupéré depuis l\'API:', user);
-          },
-          error: (error) => {
-            console.error('Erreur lors de la récupération de l\'utilisateur:', error);
-            // Si l'API échoue, nettoyer les données d'authentification
-            this.clearAuthData();
-          }
-        });
-      } 
+        // ✅ CORRECTION: Vérifier la validité du token avant de faire l'appel API
+        if (this.isTokenValid()) {
+          this.getCurrentUser().subscribe({
+            next: (user) => {
+              this._currentUser.set(user);
+              console.log('✅ Utilisateur récupéré:', user);
+            },
+            error: (error) => {
+              console.error('❌ Erreur récupération utilisateur:', error);
+              this.clearAuthData();
+            }
+          });
+        } else {
+          console.warn('⚠️ Token expiré, nettoyage automatique');
+          this.clearAuthData();
+        }
+      }
     }
   }
 
+  // ✅ NOUVELLE MÉTHODE: Vérification du format du token
+  private isTokenValidFormat(token: string): boolean {
+    try {
+      const parts = token.split('.');
+      return parts.length === 3;
+    } catch {
+      return false;
+    }
+  }
 
-  
-  // Méthode pour obtenir la liste des profils disponibles
-  getAvailableProfiles(): any[] {
+  // Méthodes pour obtenir les profils
+  getAvailableProfiles(): ProfileConfig[] {
     return this.profilesConfig;
   }
 
-  // Méthode pour obtenir la configuration d'un profil spécifique
-  getProfileConfig(profile: profil): any | undefined {
+  getProfileConfig(profile: profil): ProfileConfig | undefined {
     return this.profilesConfig.find(p => p.key === profile);
   }
 
-  // Méthode pour obtenir les profils disponibles pour la création de compte
-  getRegistrationProfiles(): any[] {
-    // Exclure ADMIN des profils disponibles lors de l'inscription
-    return this.profilesConfig.filter(p => p.key !== profil.SITE_MANAGER);
+  getRegistrationProfiles(): ProfileConfig[] {
+    return this.profilesConfig; // Tous les profils sont disponibles pour l'inscription
   }
 
   register(registrationData: RegistrationData): Observable<any> {
-    // Validation du profil
     if (!Object.values(profil).includes(registrationData.profil)) {
       throw new Error('Profil utilisateur invalide');
     }
 
-    // Créer FormData si nécessaire pour l'upload de fichiers
     const formData = new FormData();
     Object.entries(registrationData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -266,7 +299,6 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/signup`, formData);
   }
 
-  // Surcharge pour accepter aussi FormData (rétrocompatibilité)
   registerWithFormData(data: FormData): Observable<any> {
     return this.http.post(`${this.apiUrl}/signup`, data);
   }
@@ -275,7 +307,6 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.apiUrl}/signin`, credentials)
       .pipe(
         tap(response => {
-          // Mettre à jour les signals après une connexion réussie
           this.setAuthData(response.token, response.user);
         })
       );
@@ -283,101 +314,83 @@ export class AuthService {
 
   logout(): void {
     this.clearAuthData();
-    // Optionnel: appeler l'API de déconnexion
-    // this.http.post(`${this.apiUrl}/logout`, {}).subscribe();
   }
 
   private setAuthData(token: string, user: User): void {
-    // Stocker seulement le token dans localStorage
     if (isPlatformBrowser(this.platformId)) {
       localStorage.setItem('token', token);
-      // console.log('Token stocké dans localStorage');
+      console.log('✅ Token stocké dans localStorage');
     }
     
-    // Mettre à jour les signals
     this._token.set(token);
     this._currentUser.set(user);
     this._isAuthenticated.set(true);
+    
+    console.log('✅ État d\'authentification mis à jour:', {
+      token: !!token,
+      user: user?.email,
+      profils: user?.profil
+    });
   }
 
   private clearAuthData(): void {
-    // Nettoyer localStorage seulement côté client
     if (isPlatformBrowser(this.platformId)) {
       localStorage.removeItem('token');
-      localStorage.removeItem('user'); // Au cas où il y aurait encore des données anciennes
+      localStorage.removeItem('user');
     }
     
-    // Réinitialiser les signals
     this._token.set(null);
     this._currentUser.set(null);
     this._isAuthenticated.set(false);
+    
+    console.log('🧹 Données d\'authentification nettoyées');
   }
 
-  // Méthode pour obtenir le token (utile pour les intercepteurs)
+  // ✅ CORRECTION MAJEURE: Méthode pour obtenir le token
   getToken(): string | null {
-    return this._token();
+    const token = this._token();
+    
+    if (!token) {
+      console.warn('⚠️ Aucun token dans le signal');
+      return null;
+    }
+
+    if (!this.isTokenValid()) {
+      console.warn('⚠️ Token expiré, nettoyage automatique');
+      this.clearAuthData();
+      return null;
+    }
+
+    return token;
   }
 
-  // Méthode pour obtenir les headers d'authentification
+  // ✅ CORRECTION MAJEURE: Méthode pour obtenir les headers d'authentification
   getAuthHeaders(): HttpHeaders {
     const token = this.getToken();
     
-    console.log('=== DEBUG AUTH HEADERS SERVICE ===');
-    console.log('Token récupéré:', token ? token.substring(0, 50) + '...' : 'null');
+    console.log('=== AUTH HEADERS DEBUG ===');
+    console.log('Token récupéré:', token ? `${token.substring(0, 20)}...` : 'null');
     
     if (!token) {
-      console.warn('⚠️ Aucun token disponible dans AuthService');
+      console.error('❌ Aucun token valide disponible');
       return new HttpHeaders({
         'Content-Type': 'application/json'
       });
     }
-    
-    // Vérifier la validité du token JWT
-    try {
-      const tokenParts = token.split('.');
-      if (tokenParts.length !== 3) {
-        console.error('❌ Token JWT invalide (format incorrect)');
-        this.logout(); // Nettoyer le token invalide
-        return new HttpHeaders({
-          'Content-Type': 'application/json'
-        });
-      }
-      
-      // Décoder le payload pour vérification
-      const payload = JSON.parse(atob(tokenParts[1]));
-      console.log('Payload token:', {
-        profil: payload.profil || payload.role,
-        exp: payload.exp ? new Date(payload.exp * 1000) : 'Pas d\'expiration',
-        sub: payload.sub || payload.userId,
-        iat: payload.iat ? new Date(payload.iat * 1000) : 'Pas de date émission'
-      });
-      
-      // Vérifier l'expiration
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
-        console.error('❌ Token expiré');
-        this.logout(); // Nettoyer automatiquement le token expiré
-        return new HttpHeaders({
-          'Content-Type': 'application/json'
-        });
-      }
-      
-      console.log('✅ Token valide');
-    } catch (error) {
-      console.error('❌ Erreur lors de la validation du token:', error);
-    }
-    
+
     const headers = new HttpHeaders({
-      'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     });
     
-    console.log('Headers créés avec Authorization');
-    console.log('=================================');
+    console.log('✅ Headers créés avec Authorization');
+    console.log('========================');
     
     return headers;
   }
+
+  // ✅ AMÉLIORATION: Validation du token plus robuste
   isTokenValid(): boolean {
-    const token = this.getToken();
+    const token = this._token();
     
     if (!token) {
       return false;
@@ -386,74 +399,91 @@ export class AuthService {
     try {
       const tokenParts = token.split('.');
       if (tokenParts.length !== 3) {
+        console.error('❌ Format de token invalide');
         return false;
       }
       
       const payload = JSON.parse(atob(tokenParts[1]));
       
-      // Vérifier l'expiration
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
-        return false;
+      // Vérifier l'expiration avec une marge de 5 minutes
+      if (payload.exp) {
+        const expirationTime = payload.exp * 1000;
+        const currentTime = Date.now();
+        const marginTime = 5 * 60 * 1000; // 5 minutes de marge
+        
+        if (expirationTime - marginTime <= currentTime) {
+          console.warn('⚠️ Token proche de l\'expiration ou expiré');
+          return false;
+        }
       }
       
       return true;
     } catch (error) {
-      console.error('Erreur lors de la validation du token:', error);
+      console.error('❌ Erreur validation token:', error);
       return false;
     }
   }
-  // getConnectedUserId(): number | null {
-  //   return this._currentUser()?.id ?? null;
-  
-  
-  // Nouvelle méthode pour récupérer l'utilisateur connecté depuis l'API
+
+  // ✅ MÉTHODE CORRIGÉE: Récupération de l'utilisateur avec meilleure gestion d'erreurs
   getCurrentUser(): Observable<User> {
-    return this.http.get<User>(`${this.userApiUrl}/me`, {
-      headers: this.getAuthHeaders()
-    }).pipe(
+    const headers = this.getAuthHeaders();
+    
+    // Vérifier si on a un token valide avant de faire l'appel
+    if (!headers.get('Authorization')) {
+      console.error('❌ Impossible de récupérer l\'utilisateur: pas d\'autorisation');
+      return of(null as any);
+    }
+
+    return this.http.get<User>(`${this.userApiUrl}/me`, { headers }).pipe(
       tap(user => {
-        if (user && user.profil) {
-          // console.log('Profil de l\'utilisateur connecté:', user.profil);
+        if (user) {
+          this._currentUser.set(user);
+          console.log('✅ Utilisateur mis à jour:', {
+            id: user.id,
+            email: user.email,
+            profils: user.profil,
+            activated: user.activated,
+            enabled: user.enabled
+          });
         }
-        this._currentUser.set(user);
-        // console.log('Informations utilisateur mises à jour:', user);
       }),
       catchError(error => {
-        // console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+        console.error('❌ Erreur récupération utilisateur:', error);
+        if (error.status === 401 || error.status === 403) {
+          console.log('🧹 Token invalide, nettoyage automatique');
+          this.clearAuthData();
+        }
         return of(null as any);
       })
     );
   }
-  
 
-  // Méthode pour obtenir l'URL de la photo de profil
-  getUserPhotoUrl(userId?: number): string {
-    const user = this._currentUser();
-    const id = userId || user?.id;
-    
-    if (id) {
-      return `${this.userApiUrl}/photo/${id}`;
-    }
-    
-    return 'assets/images/profil.png'; // Image par défaut
+  // ✅ NOUVELLES MÉTHODES: Vérifications des profils avec gestion d'array
+  hasProfile(profile: profil): boolean {
+    const userProfiles = this.userProfile();
+    return userProfiles ? userProfiles.includes(profile) : false;
   }
 
-  // Méthode pour vérifier si l'utilisateur a une photo
-  hasUserPhoto(): boolean {
-    const user = this._currentUser();
-    return user?.photo !== null && user?.photo !== undefined;
+  hasAnyProfile(profiles: profil[]): boolean {
+    const userProfiles = this.userProfile();
+    if (!userProfiles) return false;
+    
+    return profiles.some(profile => userProfiles.includes(profile));
   }
 
-  // Méthodes pour vérifier les rôles et profils
-  // hasProfile(profile: UserProfile): boolean {
-  //   return this.userProfile() === profile;
-  // }
+  isSiteManager(): boolean {
+    return this.hasProfile(profil.SITE_MANAGER);
+  }
 
-  // hasAnyProfile(profiles: UserProfile[]): boolean {
-  //   const userProfile = this.userProfile();
-  //   return userProfile ? profiles.includes(userProfile) : false;
-  // }
+  isSupplier(): boolean {
+    return this.hasProfile(profil.SUPPLIER);
+  }
 
+  isSubcontractor(): boolean {
+    return this.hasProfile(profil.SUBCONTRACTOR);
+  }
+
+  // ✅ MÉTHODES CORRIGÉES: Vérifications des permissions
   hasAuthority(authority: string): boolean {
     const user = this._currentUser();
     return user?.authorities.some(auth => auth.authority === authority) || false;
@@ -469,31 +499,34 @@ export class AuthService {
     return requiredPermissions.some(permission => userPermissions.includes(permission));
   }
 
-  // Méthode pour vérifier si l'utilisateur peut effectuer certaines actions
+  // ✅ NOUVELLES MÉTHODES: Vérifications des actions spécifiques
+  canCreateReport(): boolean {
+    return this.isAccountValid() && 
+           this.isAuthenticated() && 
+           this.hasPermission('REPORT_CREATE');
+  }
+
+  canViewReport(): boolean {
+    return this.isAccountValid() && 
+           this.isAuthenticated() && 
+           this.hasPermission('REPORT_VIEW');
+  }
+
   canPerformAction(): boolean {
     return this.isAccountValid() && this.isAuthenticated();
   }
 
   // Méthodes spécifiques aux nouveaux profils
   canManageSites(): boolean {
-    return this.isSiteManager();
-  }
-  isSiteManager(): boolean {
-    throw new Error('Method not implemented.');
+    return this.isSiteManager() && this.hasPermission('SITE_MANAGEMENT');
   }
 
   canSupplyMaterials(): boolean {
-    return this.isSupplier();
-  }
-  isSupplier(): boolean {
-    throw new Error('Method not implemented.');
+    return this.isSupplier() && this.hasPermission('SUPPLY_MANAGEMENT');
   }
 
   canManageSubcontracts(): boolean {
-    return  this.isSubcontractor();
-  }
-  isSubcontractor(): boolean {
-    throw new Error('Method not implemented.');
+    return this.isSubcontractor() && this.hasPermission('TASK_MANAGEMENT');
   }
 
   canAccessProjects(): boolean {
@@ -509,6 +542,11 @@ export class AuthService {
   getSubscriptionStatus(): string {
     const activeSubscription = this.getActiveSubscription();
     return activeSubscription?.status || 'NONE';
+  }
+
+  // ✅ NOUVELLE MÉTHODE: ID de l'utilisateur connecté
+  getConnectedUserId(): number | null {
+    return this._currentUser()?.id ?? null;
   }
 
   // Méthode pour formater la date de création
@@ -538,7 +576,7 @@ export class AuthService {
     }).pipe(
       tap(updatedUser => {
         this._currentUser.set(updatedUser);
-        // console.log('Profil utilisateur mis à jour:', updatedUser);
+        console.log('✅ Profil utilisateur mis à jour:', updatedUser);
       })
     );
   }
@@ -557,9 +595,20 @@ export class AuthService {
     return this.userFullName() || 'Utilisateur';
   }
 
-  // Méthode utilitaire pour vérifier si on est côté client
-  private isBrowser(): boolean {
-    return isPlatformBrowser(this.platformId);
+  getUserPhotoUrl(userId?: number): string {
+    const user = this._currentUser();
+    const id = userId || user?.id;
+    
+    if (id) {
+      return `${this.userApiUrl}/photo/${id}`;
+    }
+    
+    return 'assets/images/profil.png';
+  }
+
+  hasUserPhoto(): boolean {
+    const user = this._currentUser();
+    return user?.photo !== null && user?.photo !== undefined;
   }
 
   // Méthodes pour la gestion des notifications
@@ -567,7 +616,7 @@ export class AuthService {
     return this._currentUser()?.notifiable || false;
   }
 
-  // Méthode pour vérifier la validité du compte
+  // Méthodes pour vérifier la validité du compte
   isAccountExpired(): boolean {
     const user = this._currentUser();
     return user ? !user.accountNonExpired : true;
@@ -583,19 +632,26 @@ export class AuthService {
     return user ? !user.accountNonLocked : true;
   }
 
-  // Méthode pour obtenir le profil formaté en français
-  // getFormattedUserProfile(): string {
-  //   const profile = this.userProfile();
-  //   const config = this.getProfileConfig(profile as profil);
-  //   return config?.label || 'Utilisateur';
-  // }
+  // ✅ NOUVELLES MÉTHODES: Formatage des profils
+  getFormattedUserProfile(): string[] {
+    const profiles = this.userProfile();
+    if (!profiles) return ['Utilisateur'];
+    
+    return profiles.map(profile => {
+      const config = this.getProfileConfig(profile);
+      return config?.label || profile;
+    });
+  }
 
-  // Méthode pour obtenir la description du profil
-  // getUserProfileDescription(): string {
-  //   const profile = this.userProfile();
-  //   const config = this.getProfileConfig(profile as profil);
-  //   return config?.description || 'Accès de base au système';
-  // }
+  getUserProfileDescription(): string[] {
+    const profiles = this.userProfile();
+    if (!profiles) return ['Accès de base au système'];
+    
+    return profiles.map(profile => {
+      const config = this.getProfileConfig(profile);
+      return config?.description || 'Accès de base au système';
+    });
+  }
 
   // Méthode pour valider les données d'inscription
   validateRegistrationData(data: RegistrationData): string[] {
@@ -634,5 +690,16 @@ export class AuthService {
     return errors;
   }
 
-  
+  // ✅ MÉTHODE DE DEBUG
+  debugAuthState(): void {
+    console.log('=== DEBUG AUTH STATE ===');
+    console.log('Token:', this._token() ? 'Present' : 'Absent');
+    console.log('Token valide:', this.isTokenValid());
+    console.log('Authentifié:', this.isAuthenticated());
+    console.log('Utilisateur:', this._currentUser());
+    console.log('Profils:', this.userProfile());
+    console.log('Permissions:', this.userPermissions());
+    console.log('Compte valide:', this.isAccountValid());
+    console.log('=======================');
+  }
 }

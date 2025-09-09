@@ -225,184 +225,328 @@
     </div>
   </div>
   
-<!-- Modal -->
+<!-- Modal des détails avec création de rapport -->
 <div *ngIf="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-      <!-- Modal Header avec étapes -->
-      <div class="p-6 border-b border-gray-200">
-        <div class="flex justify-between items-start mb-6">
-          <h2 class="text-xl font-semibold text-gray-900">{{ selectedDemande?.title }}</h2>
-          <div class="flex items-center space-x-2">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ getStatusClass(selectedDemande?.status || '') }}">
-              {{ mapStatusToFrench(selectedDemande?.status || '') }}
-            </span>
-            <button 
-              (click)="closeModal()"
-              class="text-gray-400 hover:text-gray-600 transition-colors duration-200 ml-4">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-  
-        <!-- Étapes de progression -->
-        <div class="flex items-center justify-between mb-2">
-          <!-- Étape 1 -->
-          <div class="flex flex-col items-center flex-1">
-            <div class="w-8 h-8 rounded-full border-2 border-orange-500 bg-orange-500 flex items-center justify-center text-white text-sm font-medium">
-              1
-            </div>
-            <div class="mt-2 text-sm font-medium text-orange-500">En attente de réponse</div>
-          </div>
-          
-          <!-- Ligne de connexion 1-2 -->
-          <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
-          
-          <!-- Étape 2 -->
-          <div class="flex flex-col items-center flex-1">
-            <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
-              2
-            </div>
-            <div class="mt-2 text-sm text-gray-400">En cours d'acceptation</div>
-          </div>
-          
-          <!-- Ligne de connexion 2-3 -->
-          <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
-          
-          <!-- Étape 3 -->
-          <div class="flex flex-col items-center flex-1">
-            <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
-              3
-            </div>
-            <div class="mt-2 text-sm text-gray-400">En cours de livraison</div>
-          </div>
-          
-          <!-- Ligne de connexion 3-4 -->
-          <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
-          
-          <!-- Étape 4 -->
-          <div class="flex flex-col items-center flex-1">
-            <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
-              4
-            </div>
-            <div class="mt-2 text-sm text-gray-400">Validation/Rejet</div>
-          </div>
+  <div class="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+    <!-- Modal Header avec étapes -->
+    <div class="p-6 border-b border-gray-200">
+      <div class="flex justify-between items-start mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">{{ selectedDemande?.title }}</h2>
+        <div class="flex items-center space-x-2">
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium {{ getStatusClass(selectedDemande?.status || '') }}">
+            {{ mapStatusToFrench(selectedDemande?.status || '') }}
+          </span>
+          <button 
+            (click)="closeModal()"
+            class="text-gray-400 hover:text-gray-600 transition-colors duration-200 ml-4">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
       </div>
-  
-      <!-- Modal Body -->
-      <div class="p-6">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <!-- Left Column - Information -->
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Informations</h3>
+
+      <!-- Étapes de progression -->
+      <div class="flex items-center justify-between mb-2">
+        <!-- Étape 1 -->
+        <div class="flex flex-col items-center flex-1">
+          <div class="w-8 h-8 rounded-full border-2 border-orange-500 bg-orange-500 flex items-center justify-center text-white text-sm font-medium">
+            1
+          </div>
+          <div class="mt-2 text-sm font-medium text-orange-500">En attente de réponse</div>
+        </div>
+        
+        <!-- Ligne de connexion 1-2 -->
+        <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
+        
+        <!-- Étape 2 -->
+        <div class="flex flex-col items-center flex-1">
+          <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
+            2
+          </div>
+          <div class="mt-2 text-sm text-gray-400">En cours d'acceptation</div>
+        </div>
+        
+        <!-- Ligne de connexion 2-3 -->
+        <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
+        
+        <!-- Étape 3 -->
+        <div class="flex flex-col items-center flex-1">
+          <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
+            3
+          </div>
+          <div class="mt-2 text-sm text-gray-400">En cours de livraison</div>
+        </div>
+        
+        <!-- Ligne de connexion 3-4 -->
+        <div class="flex-1 h-px bg-gray-300 mx-4 mt-[-20px]"></div>
+        
+        <!-- Étape 4 -->
+        <div class="flex flex-col items-center flex-1">
+          <div class="w-8 h-8 rounded-full border-2 border-gray-300 bg-white flex items-center justify-center text-gray-400 text-sm font-medium">
+            4
+          </div>
+          <div class="mt-2 text-sm text-gray-400">Validation/Rejet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Left Column - Information -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Informations</h3>
+          
+          <div class="space-y-4">
+            <div class="flex justify-between">
+              <div class="text-sm font-medium text-gray-600">Titre</div>
+              <div class="font-medium">{{ selectedDemande?.title }}</div>
+            </div>
             
-            <div class="space-y-4">
-              <div class=" flex justify-between">
-                <div class="text-sm font-medium text-gray-600">Titre</div>
-                <div class="font-medium">{{ selectedDemande?.title }}</div>
+            <div class="flex justify-between">
+              <div class="text-sm font-medium text-gray-600">BET concerné</div>
+              <div class="font-medium">{{ selectedDemande?.betName }}</div>
+            </div>
+            
+            <div class="flex justify-between">
+              <div class="text-sm font-medium text-gray-600">Date de création</div>
+              <div class="font-medium">{{ formatDate(selectedDemande?.createdAt || []) }}</div>
+            </div>
+            
+            <div class="flex justify-between">
+              <div class="text-sm font-medium text-gray-600">État</div>
+              <div class="col-span-2">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ getStatusClass(selectedDemande?.status || '') }}">
+                  {{ mapStatusToFrench(selectedDemande?.status || '') }}
+                </span>
               </div>
-              
-              <div class=" flex justify-between">
-                <div class="text-sm font-medium text-gray-600">BET concerné</div>
-                <div class="font-medium">{{ selectedDemande?.betName }}</div>
-              </div>
-              
-              <div class=" flex justify-between">
-                <div class="text-sm font-medium text-gray-600">Date de création</div>
-                <div class="font-medium">{{ formatDate(selectedDemande?.createdAt || []) }}</div>
-              </div>
-              
-              <div class=" flex justify-between">
-                <div class="text-sm font-medium text-gray-600">État</div>
-                <div class="col-span-2">
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ getStatusClass(selectedDemande?.status || '') }}">
-                    {{ mapStatusToFrench(selectedDemande?.status || '') }}
-                  </span>
+            </div>
+          </div>
+
+          <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div class="text-sm text-gray-900">{{ selectedDemande?.description }}</div>
+          </div>
+
+          <!-- Associated Reports -->
+          <div class="mt-8">
+            <div class="flex items-center mb-4">
+              <h4 class="text-md font-semibold text-gray-900 flex items-center">
+                <svg class="w-5 h-5 text-orange-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Rapports associés
+              </h4>
+              <!-- Bouton d'ajout de rapport -->
+              <button 
+                (click)="openCreateReportModal()"
+                class="ml-2 p-1 text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+                title="Ajouter un rapport">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- Liste des rapports -->
+            <div *ngIf="selectedDemande?.reports && selectedDemande?.reports!.length > 0; else noReports">
+              <div class="space-y-3">
+                <div *ngFor="let report of selectedDemande?.reports" 
+                     class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div class="flex items-center space-x-3">
+                    <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
+                    </svg>
+                    <div>
+                      <div class="text-sm font-medium text-gray-900">{{ report.title }}</div>
+                      <div class="text-xs text-gray-500">Version {{ report.versionNumber }} • {{ report.authorName }}</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xs text-gray-400">{{ formatDate(report.submittedAt) }}</span>
+                    <button class="text-orange-500 hover:text-orange-600">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-  
-            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-              <div class="text-sm text-gray-900">{{ selectedDemande?.description }}</div>
-            </div>
-  
-            <!-- Associated Reports -->
-            <div class="mt-8">
-              <div class="flex items-center mb-4">
-                <h4 class="text-md font-semibold text-gray-900 flex items-center">
-                  <svg class="w-5 h-5 text-orange-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                  </svg>
-                  Rapports associés
-                </h4>
-                <svg class="w-5 h-5 text-orange-500 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
-                </svg>
-              </div>
+            
+            <ng-template #noReports>
               <div class="text-center py-8 text-gray-500">
                 <div class="text-sm italic">Aucun rapport</div>
               </div>
-            </div>
-          </div>
-  
-          <!-- Right Column - Comments -->
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Commentaires</h3>
-            
-            <div class="bg-gray-50 rounded-lg p-6 mb-4 min-h-32 flex items-center justify-center">
-              <div class="text-center text-gray-500">
-                <div class="text-sm italic">Aucun commentaire</div>
-              </div>
-            </div>
-  
-            <!-- Comment Input -->
-            <div class="space-y-3">
-              <textarea
-                [(ngModel)]="comment"
-                placeholder="Ajouter un commentaire......."
-                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                rows="3"></textarea>
-              
-              <div class="flex justify-end">
-                <button 
-                  (click)="sendComment()"
-                  [disabled]="!comment.trim()"
-                  class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200">
-                  Envoyer
-                </button>
-              </div>
-            </div>
+            </ng-template>
           </div>
         </div>
-      </div>
-  
-      <!-- Modal Footer -->
-      <div class="border-t border-gray-200 p-6">
-        <div class="flex justify-between">
-          <button 
-            (click)="closeModal()"
-            class="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
-            Fermer
-          </button>
+
+        <!-- Right Column - Comments -->
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Commentaires</h3>
           
-          <div class="flex space-x-3" *ngIf="canAcceptOrReject()">
-            <button 
-              (click)="acceptDemande()"
-              class="bg-[#1C3056] text-white px-6 py-2 rounded-lg hover:bg-[#152544] transition-colors duration-200">
-              Accepter
-            </button>
-            <button 
-              (click)="rejectDemande()"
-              class="border border-red-300 text-red-600 px-6 py-2 rounded-lg hover:bg-red-50 transition-colors duration-200">
-              Rejeter
-            </button>
+          <div class="bg-gray-50 rounded-lg p-6 mb-4 min-h-32 flex items-center justify-center">
+            <div class="text-center text-gray-500">
+              <div class="text-sm italic">Aucun commentaire</div>
+            </div>
+          </div>
+
+          <!-- Comment Input -->
+          <div class="space-y-3">
+            <textarea
+              [(ngModel)]="comment"
+              placeholder="Ajouter un commentaire......."
+              class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              rows="3"></textarea>
+            
+            <div class="flex justify-end">
+              <button 
+                (click)="sendComment()"
+                [disabled]="!comment.trim()"
+                class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200">
+                Envoyer
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-<!-- le ts -->
 
+    <!-- Modal Footer -->
+    <div class="border-t border-gray-200 p-6">
+      <div class="flex justify-between">
+        <button 
+          (click)="closeModal()"
+          class="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200">
+          Fermer
+        </button>
+        
+        <div class="flex space-x-3" *ngIf="canAcceptOrReject()">
+          <button 
+            (click)="acceptDemande()"
+            class="bg-[#1C3056] text-white px-6 py-2 rounded-lg hover:bg-[#152544] transition-colors duration-200">
+            Accepter
+          </button>
+          <button 
+            (click)="rejectDemande()"
+            class="border border-red-300 text-red-600 px-6 py-2 rounded-lg hover:bg-red-50 transition-colors duration-200">
+            Rejeter
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de création de rapport -->
+<div *ngIf="showCreateReportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div class="bg-white rounded-lg shadow-xl max-w-lg w-full">
+  <!-- Header du modal -->
+  <div class="flex justify-between items-center p-6 border-b border-gray-200">
+    <h2 class="text-xl font-semibold text-gray-900">Nouveau rapport</h2>
+    <button 
+      (click)="closeCreateReportModal()"
+      class="text-gray-400 hover:text-gray-600 transition-colors duration-200">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Corps du modal -->
+  <div class="p-6">
+    <form (ngSubmit)="createReport()" #reportForm="ngForm">
+      <!-- Champ Titre -->
+      <div class="mb-4">
+        <label for="reportTitle" class="block text-sm font-medium text-gray-700 mb-2">
+          Titre
+        </label>
+        <input
+          type="text"
+          id="reportTitle"
+          [(ngModel)]="newReport.title"
+          name="title"
+          required
+          placeholder="Ex: Rapport technique"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-200">
+      </div>
+
+      <!-- Champ Version -->
+      <div class="mb-4">
+        <label for="reportVersion" class="block text-sm font-medium text-gray-700 mb-2">
+          Version
+        </label>
+        <input
+          type="text"
+          id="reportVersion"
+          [(ngModel)]="newReport.version"
+          name="version"
+          required
+          placeholder="Ex: v1.0"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-200">
+      </div>
+
+      <!-- Champ Document -->
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Document
+        </label>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
+          <div class="text-center">
+            <input 
+              type="file" 
+              id="fileInput" 
+              (change)="onFileSelected($event)"
+              accept=".pdf,.doc,.docx,.xls,.xlsx"
+              class="hidden">
+            
+            <label 
+              for="fileInput" 
+              class="inline-flex items-center px-4 py-2 bg-orange-100 text-orange-600 rounded-lg cursor-pointer hover:bg-orange-200 transition-colors duration-200">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              Choisir un fichier
+            </label>
+            
+            <div class="mt-2 text-sm text-gray-500">
+              {{ getFileName() }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message d'erreur -->
+      <div *ngIf="createReportError" class="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+        {{ createReportError }}
+      </div>
+
+      <!-- Boutons d'action -->
+      <div class="flex justify-end space-x-3">
+        <button 
+          type="button"
+          (click)="cancelCreateReport()"
+          [disabled]="isCreatingReport"
+          class="px-6 py-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 transition-colors duration-200">
+          Annuler
+        </button>
+        
+        <button 
+          type="submit"
+          [disabled]="isCreatingReport"
+          class="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors duration-200 flex items-center">
+          <span *ngIf="isCreatingReport" class="mr-2">
+            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </span>
+          {{ isCreatingReport ? 'Envoi en cours...' : 'Envoyer' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
         

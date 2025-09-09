@@ -3,14 +3,22 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Subject, takeUntil, finalize } from 'rxjs';
 import { 
+  CreateTaskRequest,
   ProjectBudgetService, 
   Task, 
   TasksResponse 
 } from './../../../services/project-details.service';
+import { 
+  UtilisateurService, 
+  Worker, 
+  WorkersResponse 
+} from './../../../services/utilisateur.service';
 
 interface User {
   id: number;
   avatarUrl: string;
+  name: string;
+  
 }
 
 interface TaskTag {
@@ -48,6 +56,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
 
   columns: TaskColumn[] = [];
   users: User[] = [];
+  workers: Worker[] = []; // Liste des workers disponibles
   
   // Form data
   newTask: Partial<Task> = {};
@@ -64,7 +73,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
   successMessage: string | null = null;
   
   // Pagination
-  currentPage = 0; // API utilise 0 comme première page
+  currentPage = 0;
   pageSize = 50;
   totalTasks = 0;
   totalPages = 0;
@@ -72,8 +81,8 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
   // File upload
   selectedFiles: File[] = [];
   
-  // Property ID (à adapter selon votre logique)
-  currentPropertyId: number = 1; // Vous devrez récupérer cet ID depuis votre contexte
+  // Property ID
+  currentPropertyId: number = 21;
 
   // Task form
   currentTask: any = {
@@ -81,38 +90,44 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     title: '',
     description: '',
     priority: 'MEDIUM',
-    startDate: null,
-    endDate: null,
-    realEstateProperty: null,
+    startDate: this.getCurrentDateArray(),
+    endDate: this.getCurrentDateArray(),
+    realEstateProperty: { id: this.currentPropertyId },
     executors: [],
     status: 'TODO',
     pictures: []
   };
 
-  // Pour gérer la désinscription des observables
   private destroy$ = new Subject<void>();
-correctionTask: TaskDisplay | undefined;
-coulageTask: TaskDisplay | undefined;
+  correctionTask: TaskDisplay | undefined;
+  coulageTask: TaskDisplay | undefined;
 
-  constructor(private projectBudgetService: ProjectBudgetService) { }
+  constructor(
+    private projectBudgetService: ProjectBudgetService,
+    private utilisateurService: UtilisateurService
+  ) { }
 
-  // Méthode pour définir l'ID de la propriété
   setPropertyId(propertyId: number): void {
     this.currentPropertyId = propertyId;
+    this.currentTask.realEstateProperty = { id: propertyId };
     this.loadTasks();
+    this.loadWorkers(); // Charger les workers quand la propriété change
   }
 
-  // Méthode pour initialiser avec un ID de propriété spécifique
   initializeWithProperty(propertyId: number): void {
     this.currentPropertyId = propertyId;
+    this.currentTask.realEstateProperty = { id: propertyId };
     this.initializeUsers();
+    this.loadWorkers(); // Charger les workers
     this.loadTasks();
   }
 
   ngOnInit(): void {
     this.initializeUsers();
-    // Ne pas charger les tâches automatiquement, attendre qu'un propertyId soit défini
+    this.resetCurrentTask();
+    
     if (this.currentPropertyId) {
+      this.loadWorkers(); // Charger les workers au démarrage
       this.loadTasks();
     }
   }
@@ -123,13 +138,50 @@ coulageTask: TaskDisplay | undefined;
   }
 
   private initializeUsers(): void {
-    // Mock users - remplacez par vos vraies données utilisateur
-    this.users = [
-      { id: 1, avatarUrl: 'assets/images/av1.png' },
-      { id: 2, avatarUrl: 'assets/images/av2.png' },
-      { id: 3, avatarUrl: 'assets/images/av3.png' },
-      { id: 4, avatarUrl: 'assets/images/av4.png' }
+    // Initialiser avec des utilisateurs vides, seront remplacés par les workers
+    this.users = [];
+  }
+
+  private loadWorkers(): void {
+    this.utilisateurService.listUsers(0, 100) // Charger jusqu'à 100 workers
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response: WorkersResponse) => {
+          this.workers = response.content;
+          this.users = this.mapWorkersToUsers(this.workers);
+        },
+        error: (error) => {
+          console.error('Erreur lors du chargement des workers:', error);
+          // Garder les utilisateurs mockés en cas d'erreur
+          this.users = [
+            { id: 1, avatarUrl: 'assets/images/av1.png', name: 'Ouvrier 1' },
+            { id: 2, avatarUrl: 'assets/images/av2.png', name: 'Ouvrier 2' },
+            { id: 3, avatarUrl: 'assets/images/av3.png', name: 'Ouvrier 3' },
+            { id: 4, avatarUrl: 'assets/images/av4.png', name: 'Ouvrier 4' }
+          ];
+        }
+      });
+  }
+
+private mapWorkersToUsers(workers: Worker[]): User[] {
+  return workers.map((worker, index) => {
+    console.log('Worker photo:', worker.photo); // Debug
+    return {
+      id: worker.id,
+      avatarUrl: worker.photo || this.getDefaultAvatar(index),
+      name: `${worker.prenom} ${worker.nom}`
+    };
+  });
+}
+
+  private getDefaultAvatar(index: number): string {
+    const defaultAvatars = [
+      'assets/images/av1.png',
+      'assets/images/av2.png',
+      'assets/images/av3.png',
+      'assets/images/av4.png'
     ];
+    return defaultAvatars[index % defaultAvatars.length];
   }
 
   private loadTasks(): void {
@@ -168,7 +220,6 @@ coulageTask: TaskDisplay | undefined;
   }
 
   private organizeTasks(apiTasks: Task[]): void {
-    // Transform API tasks to display format
     const transformedTasks = apiTasks.map(task => this.transformApiTask(task));
 
     this.columns = [
@@ -219,21 +270,34 @@ coulageTask: TaskDisplay | undefined;
       assignedUsers: this.getAssignedUsers(apiTask.executors),
       additionalUsers: Math.max(0, apiTask.executors.length - 3),
       tag: this.getTagForTask(apiTask),
-      comments: 0, // À implémenter selon votre logique
+      comments: 0,
       attachments: apiTask.pictures?.length || 0,
       dueDate: apiTask.endDate ? this.formatDate(apiTask.endDate) : 'N/A',
       isDone: apiTask.status === 'COMPLETED'
     };
   }
 
-  // Méthode pour récupérer les utilisateurs assignés à partir des executors
   private getAssignedUsers(executors: any[]): User[] {
     if (!executors || executors.length === 0) return [];
     
-    return executors.slice(0, 3).map((executor, index) => ({
-      id: executor.id,
-      avatarUrl: this.users[index % this.users.length]?.avatarUrl || 'assets/images/default-avatar.png'
-    }));
+    return executors.slice(0, 3).map((executor) => {
+      // Trouver le worker correspondant ou utiliser un utilisateur par défaut
+      const worker = this.workers.find(w => w.id === executor.id);
+      if (worker) {
+        return {
+          id: worker.id,
+          avatarUrl: worker.photo || this.getDefaultAvatar(worker.id),
+          name: `${worker.prenom} ${worker.nom}`
+        };
+      }
+      
+      // Fallback si le worker n'est pas trouvé
+      return {
+        id: executor.id,
+        avatarUrl: 'assets/images/default-avatar.png',
+        name: `Exécuteur ${executor.id}`
+      };
+    });
   }
 
   private getTagForTask(task: Task): TaskTag {
@@ -266,13 +330,27 @@ coulageTask: TaskDisplay | undefined;
     if (!dateArray || dateArray.length < 3) return 'N/A';
     
     try {
-      // dateArray format: [year, month, day] (month is 1-based)
       const [year, month, day] = dateArray;
       const date = new Date(year, month - 1, day);
       return date.toLocaleDateString('fr-FR');
     } catch {
       return 'N/A';
     }
+  }
+
+  private resetCurrentTask(): void {
+    this.currentTask = {
+      id: null,
+      title: '',
+      description: '',
+      priority: 'MEDIUM',
+      startDate: this.getCurrentDateArray(),
+      endDate: this.getCurrentDateArray(),
+      realEstateProperty: { id: this.currentPropertyId },
+      executors: [],
+      status: 'TODO',
+      pictures: []
+    };
   }
 
   // Modal methods
@@ -293,18 +371,7 @@ coulageTask: TaskDisplay | undefined;
       };
     } else {
       this.isEditMode = false;
-      this.currentTask = {
-        id: null,
-        title: '',
-        description: '',
-        priority: 'MEDIUM',
-        startDate: this.getCurrentDateArray(),
-        endDate: this.getCurrentDateArray(),
-        realEstateProperty: null,
-        executors: [],
-        status: 'TODO',
-        pictures: []
-      };
+      this.resetCurrentTask();
     }
     this.selectedFiles = [];
     this.error = null;
@@ -342,26 +409,11 @@ coulageTask: TaskDisplay | undefined;
       this.error = 'La description est requise';
       return false;
     }
-    return true;
-  }
-
-  // Save task (Note: Vous devrez implémenter les méthodes de création/mise à jour dans le service)
-  saveTask(): void {
-    if (!this.validateTaskForm()) {
-      return;
+    if (!this.currentTask.realEstateProperty?.id) {
+      this.error = 'Propriété non définie';
+      return false;
     }
-
-    this.loading = true;
-    this.error = null;
-
-    // Pour l'instant, on simule la sauvegarde
-    // Vous devrez ajouter des méthodes createTask et updateTask dans ProjectBudgetService
-    setTimeout(() => {
-      this.loading = false;
-      this.loadTasks();
-      this.resetForm();
-      this.successMessage = this.isEditMode ? 'Tâche mise à jour avec succès' : 'Tâche créée avec succès';
-    }, 1000);
+    return true;
   }
 
   // Edit task
@@ -369,7 +421,7 @@ coulageTask: TaskDisplay | undefined;
     this.openModal(task);
   }
 
-  // Delete task (Note: Vous devrez implémenter deleteTask dans le service)
+  // Delete task
   deleteTask(taskId: number): void {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
       return;
@@ -377,7 +429,6 @@ coulageTask: TaskDisplay | undefined;
 
     this.loading = true;
     
-    // Simulation de suppression
     setTimeout(() => {
       this.loading = false;
       this.loadTasks();
@@ -417,6 +468,7 @@ coulageTask: TaskDisplay | undefined;
   resetForm(): void {
     this.closeModal();
     this.selectedFiles = [];
+    this.resetCurrentTask();
   }
 
   clearError(): void {
@@ -433,6 +485,10 @@ coulageTask: TaskDisplay | undefined;
     this.loadTasks();
   }
 
+  refreshWorkers(): void {
+    this.loadWorkers();
+  }
+
   // UI Helpers
   getStatusColumnTitle(status: string): string {
     const statusMap: Record<string, string> = {
@@ -443,10 +499,7 @@ coulageTask: TaskDisplay | undefined;
     return statusMap[status] || status;
   }
 
-  // Méthode pour récupérer les détails d'une propriété
   getPropertyDetails(propertyId: number): any {
-    // Cette méthode pourrait être utile si vous avez besoin des détails de la propriété
-    // Pour l'instant, on retourne un objet par défaut
     return {
       id: propertyId,
       name: `Propriété ${propertyId}`,
@@ -455,13 +508,18 @@ coulageTask: TaskDisplay | undefined;
     };
   }
 
-  // Méthode pour récupérer les informations d'un executor
   getExecutorDetails(executor: any): string {
     if (!executor) return 'Exécuteur non défini';
-    return `${executor.prenom || ''} ${executor.nom || ''}`.trim() || `Exécuteur ${executor.id}`;
+    
+    // Trouver le worker correspondant
+    const worker = this.workers.find(w => w.id === executor.id);
+    if (worker) {
+      return `${worker.prenom || ''} ${worker.nom || ''}`.trim();
+    }
+    
+    return `Exécuteur ${executor.id}`;
   }
 
-  // Méthode pour formater les informations de propriété
   getPropertyInfo(task: Task): string {
     if (task.realEstateProperty) {
       return `${task.realEstateProperty.name} - ${task.realEstateProperty.address}`;
@@ -469,7 +527,6 @@ coulageTask: TaskDisplay | undefined;
     return 'Propriété non définie';
   }
 
-  // Méthode pour obtenir le nom de la propriété
   getPropertyName(task?: Task): string {
     if (task?.realEstateProperty) {
       return task.realEstateProperty.name;
@@ -494,6 +551,10 @@ coulageTask: TaskDisplay | undefined;
     return task.id!;
   }
 
+  trackByUserId(index: number, user: User): number {
+    return user.id;
+  }
+
   // Drag and drop
   onDragStart(event: DragEvent, task: TaskDisplay): void {
     if (event.dataTransfer) {
@@ -513,7 +574,6 @@ coulageTask: TaskDisplay | undefined;
       const task = this.findTaskById(taskId);
       
       if (task && task.status !== targetStatus) {
-        // Vous devrez implémenter updateTaskStatus dans le service
         this.updateTaskStatus(task, targetStatus);
       }
     }
@@ -528,14 +588,134 @@ coulageTask: TaskDisplay | undefined;
   }
 
   private updateTaskStatus(task: TaskDisplay, newStatus: string): void {
-    // Simulation de mise à jour du statut
     task.status = newStatus as any;
     this.loadTasks();
   }
 
-  // Close task form
   closeTaskForm(): void {
     this.showTaskForm = false;
     this.resetForm();
+  }
+
+  saveTask(): void {
+    if (!this.validateTaskForm()) {
+      return;
+    }
+  
+    this.loading = true;
+    this.error = null;
+    this.successMessage = null;
+  
+    const formatDateForApi = (dateArray: number[]): string => {
+      if (!dateArray || dateArray.length < 3) {
+        const now = new Date();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const year = now.getFullYear();
+        return `${month}-${day}-${year}`;
+      }
+      const [year, month, day] = dateArray;
+      return `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}-${year}`;
+    };
+
+    const startDate = Array.isArray(this.currentTask.startDate) 
+      ? this.currentTask.startDate 
+      : this.getCurrentDateArray();
+    
+    const endDate = Array.isArray(this.currentTask.endDate) 
+      ? this.currentTask.endDate 
+      : this.getCurrentDateArray();
+  
+    const taskData: CreateTaskRequest = {
+      title: this.currentTask.title.trim(),
+      description: this.currentTask.description.trim(),
+      priority: this.currentTask.priority,
+      startDate: formatDateForApi(startDate),
+      endDate: formatDateForApi(endDate),
+      realEstatePropertyId: this.currentTask.realEstateProperty?.id || this.currentPropertyId,
+      executorIds: this.currentTask.executors.map((executor: any) => executor.id) || [],
+      pictures: this.currentTask.pictures || []
+    };
+
+    console.log('Task data to send:', taskData);
+  
+    if (this.selectedFiles.length > 0) {
+      const filePromises = this.selectedFiles.map(file => {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            resolve(e.target.result);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+  
+      Promise.all(filePromises)
+        .then(base64Files => {
+          taskData.pictures = [...(taskData.pictures || []), ...base64Files];
+          this.createOrUpdateTask(taskData);
+        })
+        .catch(error => {
+          console.error('Error converting files to base64:', error);
+          this.error = 'Erreur lors de la conversion des fichiers';
+          this.loading = false;
+        });
+    } else {
+      this.createOrUpdateTask(taskData);
+    }
+  }
+
+  private createOrUpdateTask(taskData: CreateTaskRequest): void {
+    if (this.isEditMode && this.currentTask.id) {
+      this.updateExistingTask(taskData);
+    } else {
+      this.projectBudgetService.createTask(taskData)
+        .pipe(
+          takeUntil(this.destroy$),
+          finalize(() => {
+            this.loading = false;
+          })
+        )
+        .subscribe({
+          next: (response) => {
+            console.log('Tâche créée avec succès:', response);
+            this.successMessage = 'Tâche créée avec succès';
+            this.loadTasks();
+            this.closeModal();
+          },
+          error: (error) => {
+            console.error('Erreur lors de la création de la tâche:', error);
+            this.error = 'Erreur lors de la création de la tâche';
+            this.errorMessage = error.message || error;
+          }
+        });
+    }
+  }
+
+  removeFile(index: number): void {
+    this.selectedFiles.splice(index, 1);
+  }
+
+  isUserSelected(userId: number): boolean {
+    return this.currentTask.executors.some((exec: any) => exec.id === userId);
+  }
+
+  toggleUserSelection(userId: number): void {
+    const index = this.currentTask.executors.findIndex((exec: any) => exec.id === userId);
+    if (index > -1) {
+      this.currentTask.executors.splice(index, 1);
+    } else {
+      this.currentTask.executors.push({ id: userId });
+    }
+  }
+
+  private updateExistingTask(taskData: any): void {
+    setTimeout(() => {
+      this.loading = false;
+      this.successMessage = 'Tâche mise à jour avec succès';
+      this.loadTasks();
+      this.closeModal();
+    }, 1000);
   }
 }

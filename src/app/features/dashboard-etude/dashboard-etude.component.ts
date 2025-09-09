@@ -129,7 +129,7 @@ export class DashboardEtudeComponent implements OnInit, OnDestroy, AfterViewInit
     this.loading = true;
     this.error = null;
 
-    // Charger les pourcentages
+    // Charger les pourcentages this.betId
     const percentageSubscription = this.demandeService.getPercentageCount(1).subscribe({
       next: (data: PercentageCountResponse) => {
         this.updateStatsFromPercentageData(data);
@@ -373,3 +373,6 @@ export class DashboardEtudeComponent implements OnInit, OnDestroy, AfterViewInit
     this.loadKpiData();
   }
 }
+
+
+

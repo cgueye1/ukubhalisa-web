@@ -76,13 +76,14 @@
           (dragstart)="onDragStart($event, task)"
           (click)="editTask(task)">
           
-        <!-- Task Image (if available) -->
-<div *ngIf="task.pictures && task.pictures.length > 0" class="mb-4">
-  <img 
-    [src]="'https://wakana.online/repertoire_chantier/' + task.pictures[0]" 
-    [alt]="task.title"
-    class="w-full h-40 object-cover rounded-lg">
-</div>
+          <!-- Task Image (if available) -->
+          <div *ngIf="task.pictures && task.pictures.length > 0" class="mb-4">
+            <img 
+              [src]="'https://wakana.online/repertoire_chantier/' + task.pictures[0]" 
+              [alt]="task.title"
+              class="w-full h-40 object-cover rounded-lg">
+          </div>
+          
           <!-- Task Content -->
           <div class="space-y-4">
             <!-- Assigned Users -->
@@ -217,7 +218,7 @@
   class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
   (click)="onBackdropClick($event)">
   
-  <div class="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+  <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
     <!-- Modal Header -->
     <div class="flex justify-between items-center p-6 border-b border-gray-200">
       <h2 class="text-xl font-semibold text-gray-800">
@@ -240,7 +241,7 @@
       </div>
 
       <!-- Task Form -->
-      <form (ngSubmit)="saveTask()">
+      <form (ngSubmit)="saveTask()" #taskForm="ngForm">
         <!-- Title -->
         <div class="mb-4">
           <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
@@ -287,6 +288,34 @@
           </select>
         </div>
 
+        <!-- Start Date -->
+        <div class="mb-4">
+          <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">
+            Date de début *
+          </label>
+          <input 
+            type="date"
+            id="startDate"
+            [(ngModel)]="currentTask.startDate"
+            name="startDate"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+        </div>
+
+        <!-- End Date -->
+        <div class="mb-4">
+          <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">
+            Date de fin *
+          </label>
+          <input 
+            type="date"
+            id="endDate"
+            [(ngModel)]="currentTask.endDate"
+            name="endDate"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+        </div>
+
         <!-- Status -->
         <div class="mb-4">
           <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
@@ -303,6 +332,28 @@
           </select>
         </div>
 
+        <!-- Executors (si vous avez cette fonctionnalité) -->
+        <div class="mb-4" *ngIf="users.length > 0">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Assigner à
+          </label>
+          <div class="space-y-2">
+            <div *ngFor="let user of users" class="flex items-center">
+              <input 
+                type="checkbox"
+                [id]="'user-' + user.id"
+                [value]="user.id"
+                [checked]="isUserSelected(user.id)"
+                (change)="toggleUserSelection(user.id)"
+                class="mr-2">
+              <label [for]="'user-' + user.id" class="flex items-center gap-2">
+                <img [src]="'https://wakana.online/repertoire_chantier/'+ user.avatarUrl" class="w-6 h-6 rounded-full">
+                <span> {{ user.name }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
         <!-- File Upload -->
         <div class="mb-6">
           <label for="files" class="block text-sm font-medium text-gray-700 mb-2">
@@ -317,22 +368,41 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
           <div *ngIf="selectedFiles.length > 0" class="mt-2">
             <p class="text-sm text-gray-600">{{ selectedFiles.length }} fichier(s) sélectionné(s)</p>
+            <div class="flex flex-wrap gap-2 mt-2">
+              <div *ngFor="let file of selectedFiles; let i = index" class="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded">
+                <span class="text-sm">{{ file.name }}</span>
+                <button 
+                  type="button" 
+                  (click)="removeFile(i)"
+                  class="text-red-500 hover:text-red-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Modal Actions -->
-        <div class="flex justify-end gap-3">
+        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <button 
             type="button"
             (click)="closeModal()"
-            class="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+            class="px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
             Annuler
           </button>
           <button 
             type="submit"
-            [disabled]="loading"
-            class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-            <span *ngIf="loading">Enregistrement...</span>
+            [disabled]="loading || taskForm.invalid"
+            class="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <span *ngIf="loading" class="flex items-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Enregistrement...
+            </span>
             <span *ngIf="!loading">{{ isEditMode ? 'Modifier' : 'Créer' }}</span>
           </button>
         </div>

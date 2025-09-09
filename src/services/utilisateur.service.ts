@@ -112,6 +112,7 @@ export interface CreateWorkerRequest {
   lieunaissance: string;
   adress: string;
   profil: string;
+  managerId?: number; // Ajoutez ce champ optionnel
 }
 
 @Injectable({
@@ -207,7 +208,7 @@ export class UtilisateurService {
    * Crée un nouveau worker
    * @param workerData Données du worker à créer
    * @returns Observable de la réponse de création
-   */
+   */ 
   createUser(workerData: CreateWorkerRequest): Observable<Worker> {
     const currentUserId = this.authService.currentUser()?.id;
     
@@ -474,3 +475,22 @@ export class UtilisateurService {
     return errors;
   }
 }
+
+// voici le ts 
+// adapte bien pour la creation d'un membbre (c'est un user de profil WORKER)
+// voici le corps de la requete 
+// {
+//   "nom": "Saliou",
+//   "prenom": "Fall",
+//   "email": "saliou@yopmail.com",
+//   "password": "passer123",
+//   "telephone": "772339034",
+//   "date": "02-02-1999",
+//   "lieunaissance": "Toglou",
+//   "adress": "Fann-Hock",
+//   "profil": "WORKER"
+// }
+// voici le service 
+// voici le ts 
+// donne la bonne version du ts bien adapter c'est ce format de donner les meme attribut doivent etre dans le formulaire de crarion d'un membre
+// voici le html adapte le popu de creation apres je te donne le html adapte le ts d'abord

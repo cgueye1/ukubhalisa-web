@@ -424,7 +424,7 @@ createProject(
         catchError(this.handleError.bind(this))
       );
   }
- 
+
   /**
    * Get all property types
    */

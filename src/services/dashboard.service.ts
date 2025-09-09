@@ -120,13 +120,7 @@ export class DashboardService {
     });
   }
 
-  /**
-   * Obtient l'ID de l'utilisateur connecté
-   */
-  private getCurrentUserId(): number | null {
-    const currentUser = this.authService.currentUser();
-    return currentUser?.id || null;
-  }
+  
 
   /**
    * Vue d'ensemble des tâches (KPIs)
@@ -134,6 +128,7 @@ export class DashboardService {
    */
   vueEnsemble(): Observable<TasksKpi> {
     const userId = this.getCurrentUserId();
+    console.log('utilisateur recuperer', userId)
     if (!userId) {
       throw new Error('Utilisateur non connecté');
     }
@@ -352,12 +347,24 @@ export class DashboardService {
     return new Date(year, month - 1, day, hour, minute, second);
   }
 
-  /**
-   * Méthode utilitaire pour vérifier si l'utilisateur est connecté
-   */
-  isUserConnected(): boolean {
-    return this.getCurrentUserId() !== null;
-  }
+// Dans DashboardService
+private getCurrentUserId(): number | null {
+  const currentUser = this.authService.currentUser();
+  console.log('Current user from auth service:', currentUser); // Debug
+  return currentUser?.id || null;
+}
+
+// Modifiez la méthode isUserConnected pour qu'elle soit plus fiable
+isUserConnected(): boolean {
+  const token = this.authService.getToken();
+  const hasToken = !!token;
+  const hasUser = !!this.authService.currentUser();
+  
+  console.log('Token exists:', hasToken);
+  console.log('User exists:', hasUser);
+  
+  return hasToken && hasUser;
+}
 
   /**
    * Méthode utilitaire pour obtenir toutes les données du dashboard en une seule fois

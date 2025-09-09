@@ -2,7 +2,7 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService } from '../services/auth.service';
+import { AuthService, profil, UserProfile } from '../../../features/auth/services/auth.service';
 
 interface AlertMessage {
   type: 'success' | 'error' | 'warning';
@@ -31,7 +31,6 @@ export class LoginComponent implements OnInit {
 
   // Regex pour validation
   private readonly phoneRegex = /^7[05678]\d{7}$/;
-  // MODIFICATION: Regex pour 6 caractères minimum (au lieu de 6 chiffres)
   private readonly passwordRegex = /^.{6,}$/;
 
   // Formulaires réactifs
@@ -69,7 +68,10 @@ export class LoginComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Pas besoin de synchronisation supplémentaire
+    // Vérifier si l'utilisateur est déjà connecté
+    if (this.authService.isAuthenticated()) {
+      this.redirectToDashboard();
+    }
   }
 
   // Computed signals pour les messages d'erreur
@@ -98,7 +100,6 @@ export class LoginComponent implements OnInit {
       return 'Le mot de passe est requis';
     }
     if (passwordControl.hasError('pattern')) {
-      // MODIFICATION: Message d'erreur pour 6 caractères
       return 'Le mot de passe doit contenir au moins 6 caractères';
     }
     return '';
@@ -157,7 +158,6 @@ export class LoginComponent implements OnInit {
     if (this.activeTab() === 'connexion') {
       this.handleLogin();
     } else {
-      // Rediriger vers la page d'inscription
       this.navigateToRegister();
     }
   }
@@ -165,32 +165,112 @@ export class LoginComponent implements OnInit {
   private handleLogin(): void {
     this.isLoading.set(true);
     this.hideAlert();
-
+  
     const credentials = {
       email: this.loginForm.get('email')?.value,
       password: this.loginForm.get('password')?.value
     };
 
-
+  
     this.authService.login(credentials).subscribe({
       next: (response) => {
-        this.isLoading.set(false);
-        this.showAlert('success', 'Connexion réussie !');
         
-        // Le token est  géré par le service AuthService
-      
-        
-        // Redirection après un court délai
+        // Attendre un délai pour s'assurer que toutes les données sont sauvegardées
         setTimeout(() => {
-          this.router.navigate(['/dashboard']);
-        }, 1500);
+          this.processLoginSuccess(response);
+        }, 200);
       },
       error: (err) => {
         this.isLoading.set(false);
-        const errorMessage = err.error?.message || 'Numéro de téléphone ou mot de passe incorrect';
-        this.showAlert('error', errorMessage);
+        console.error('❌ Erreur connexion:', err);
+        this.handleLoginError(err);
       }
     });
+  }
+  
+
+  private processLoginSuccess(response: any): void {
+    try {
+      
+      // Méthode principale: lire le profil directement depuis le token JWT
+      let isBET = false;
+      
+      try {
+        // Décoder le payload JWT
+        const payload = JSON.parse(atob(response.token.split('.')[1]));
+        
+        // Vérifier le profil dans différentes propriétés possibles
+        const profile = payload.profil || payload.profile || payload.role;
+        isBET = profile === 'BET';
+        
+        
+      } catch (tokenError) {
+        
+        // Fallback: utiliser le service auth après un court délai
+        setTimeout(() => {
+          const isBETFallback = this.authService.isBETProfile();
+          this.isLoading.set(false);
+          this.redirectToDashboard(isBETFallback);
+        }, 300);
+        return;
+      }
+      
+      // Redirection immédiate avec la valeur détectée
+      this.isLoading.set(false);
+      this.redirectToDashboard(isBET);
+      
+    } catch (error) {
+      this.isLoading.set(false);
+      this.redirectToDashboard(false);
+    }
+  }
+
+
+  private redirectToDashboard(isBET?: boolean): void {
+    // Si isBET n'est pas spécifié, le détecter
+    if (isBET === undefined) {
+      isBET = this.authService.isBETProfile();
+    }
+
+
+    if (isBET) {
+      this.router.navigate(['/dashboard-etude']).then(success => {
+        if (success) {
+          this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace BET.');
+        } else {
+          // Fallback vers le dashboard standard si la redirection échoue
+          this.router.navigate(['/dashboard']).then(() => {
+            this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace.');
+          });
+        }
+      });
+    } else {
+      this.router.navigate(['/dashboard']).then(success => {
+        if (success) {
+          this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace.');
+        }
+      });
+    }
+  }
+
+  private handleLoginError(err: any): void {
+    let errorMessage = 'Erreur de connexion';
+    
+    if (err.status === 401) {
+      errorMessage = 'Numéro de téléphone ou mot de passe incorrect';
+    } else if (err.status === 0) {
+      errorMessage = 'Impossible de se connecter au serveur. Vérifiez votre connexion internet.';
+    } else if (err.status === 403) {
+      errorMessage = 'Accès refusé. Votre compte pourrait être suspendu.';
+    } else if (err.status === 500) {
+      errorMessage = 'Erreur serveur. Veuillez réessayer plus tard.';
+    } else if (err.error?.message) {
+      errorMessage = err.error.message;
+    } else if (err.message) {
+      errorMessage = err.message;
+    }
+    
+    this.showAlert('error', errorMessage);
   }
 
   // Getters pour utilisation dans le template
@@ -218,7 +298,6 @@ export class LoginComponent implements OnInit {
     return this.passwordErrorMessage;
   }
 
-  // Getters pour les formulaires
   get currentLoginForm() {
     return this.loginForm;
   }

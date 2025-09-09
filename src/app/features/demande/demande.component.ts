@@ -1,4 +1,4 @@
-// demande.component.ts (version adaptée avec AuthService)
+// demande.component.ts (version mise à jour avec création de rapport)
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -27,6 +27,22 @@ export class DemandeComponent implements OnInit, OnDestroy {
   showModal: boolean = false;
   selectedDemande: Demande | null = null;
   comment: string = '';
+  
+  // Modal de création de rapport
+  showCreateReportModal: boolean = false;
+  newReport: {
+    title: string;
+    version: string;
+    file: File | null;
+  } = {
+    title: '',
+    version: '',
+    file: null
+  };
+  
+  // États de création
+  isCreatingReport: boolean = false;
+  createReportError: string | null = null;
   
   // Données dynamiques
   demandes: Demande[] = [];
@@ -142,8 +158,8 @@ export class DemandeComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.error = null;
-    
-    this.demandeService.getDemande(this.betId, page, this.pageSize).subscribe({
+    // this.betId
+    this.demandeService.getDemande(1, page, this.pageSize).subscribe({
       next: (response) => {
         this.demandes = response.content;
         this.totalElements = response.totalElements;
@@ -394,5 +410,213 @@ export class DemandeComponent implements OnInit, OnDestroy {
     console.log('Current User:', this.authService.currentUser());
     console.log('BET ID:', this.betId);
     console.log('Is BET User:', this.isBETUser());
+  }
+
+  // ========== MÉTHODES POUR LA CRÉATION DE RAPPORT ==========
+
+  /**
+   * Ouvre le modal de création de rapport
+   */
+  openCreateReportModal(): void {
+    this.showCreateReportModal = true;
+    this.resetNewReportForm();
+    this.createReportError = null;
+  }
+
+  /**
+   * Ferme le modal de création de rapport
+   */
+  closeCreateReportModal(): void {
+    this.showCreateReportModal = false;
+    this.resetNewReportForm();
+    this.createReportError = null;
+    this.isCreatingReport = false;
+  }
+
+  /**
+   * Remet à zéro le formulaire de création de rapport
+   */
+  private resetNewReportForm(): void {
+    this.newReport = {
+      title: '',
+      version: '',
+      file: null
+    };
+  }
+
+  /**
+   * Gère la sélection de fichier
+   */
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.newReport.file = input.files[0];
+    }
+  }
+
+  /**
+   * Valide le formulaire de création de rapport
+   */
+  private isCreateReportFormValid(): boolean {
+    return !!(
+      this.newReport.title.trim() && 
+      this.newReport.version.trim() && 
+      this.newReport.file // Fichier obligatoire
+    );
+  }
+
+/**
+ * Crée un nouveau rapport - Version simplifiée
+ */
+createReport(): void {
+  // Validations de base
+  if (!this.isCreateReportFormValid()) {
+    this.createReportError = 'Veuillez remplir tous les champs obligatoires';
+    return;
+  }
+
+  if (!this.selectedDemande) {
+    this.createReportError = 'Aucune demande sélectionnée';
+    return;
+  }
+
+  if (!this.newReport.file) {
+    this.createReportError = 'Veuillez sélectionner un fichier';
+    return;
+  }
+
+  if (!this.betId) {
+    this.createReportError = 'ID utilisateur non disponible';
+    return;
+  }
+
+  // Vérification d'authentification
+  if (!this.authService.isAuthenticated()) {
+    this.createReportError = 'Session expirée. Veuillez vous reconnecter.';
+    return;
+  }
+
+  this.isCreatingReport = true;
+  this.createReportError = null;
+
+  // Préparer les données du rapport
+  const reportData = {
+    title: this.newReport.title.trim(),
+    versionNumber: parseInt(this.newReport.version), // Convertir en number
+    studyRequestId: this.selectedDemande.id,
+    authorId: this.betId
+  };
+
+  console.log('=== DEBUG CRÉATION RAPPORT ===');
+  console.log('Report Data:', reportData);
+  console.log('File:', this.newReport.file);
+  console.log('User authenticated:', this.authService.isAuthenticated());
+  console.log('Token présent:', !!this.authService.getToken());
+
+  // Appel du service simplifié
+  const createSubscription = this.demandeService.createReport(reportData, this.newReport.file).subscribe({
+    next: (response: Report) => {
+      console.log('✅ Rapport créé avec succès:', response);
+      this.handleReportCreationSuccess(response);
+    },
+    error: (error: any) => {
+      console.error('❌ Erreur lors de la création du rapport:');
+      console.error('Status:', error.status);
+      console.error('Error:', error.error);
+      console.error('Message:', error.message);
+      
+      this.handleReportCreationError(error);
+    }
+  });
+
+  this.subscriptions.add(createSubscription);
+}
+
+/**
+ * Méthode alternative pour débugger FormData sans utiliser entries()
+ */
+private debugFormDataAlternative(formData: FormData): void {
+  console.log('FormData debug (alternative method):');
+  
+  // Liste des clés que nous avons ajoutées
+  const keys = ['title', 'versionNumber', 'studyRequestId', 'authorId', 'file'];
+  
+  keys.forEach(key => {
+    const value = formData.get(key);
+    if (value !== null) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`${key}:`, value);
+      }
+    } else {
+      console.log(`${key}: null`);
+    }
+  });
+}
+
+
+  /**
+   * Gère le succès de la création du rapport
+   */
+  private handleReportCreationSuccess(response: Report): void {
+    // Ajouter le nouveau rapport à la demande sélectionnée
+    if (this.selectedDemande) {
+      if (!this.selectedDemande.reports) {
+        this.selectedDemande.reports = [];
+      }
+      
+      this.selectedDemande.reports.push(response);
+    }
+    
+    // Fermer le modal
+    this.closeCreateReportModal();
+    
+    // Optionnel: recharger les demandes pour avoir les données à jour
+    // this.loadDemandes(this.currentPage);
+  }
+
+  /**
+   * Gère l'erreur de création du rapport
+   */
+  private handleReportCreationError(error: any): void {
+    this.createReportError = 'Erreur lors de la création du rapport. Veuillez réessayer.';
+    this.isCreatingReport = false;
+  }
+
+  /**
+   * Annule la création du rapport
+   */
+  cancelCreateReport(): void {
+    this.closeCreateReportModal();
+  }
+
+  /**
+   * Obtient la date actuelle sous forme de tableau (format backend)
+   */
+  private getCurrentDateArray(): number[] {
+    const now = new Date();
+    return [
+      now.getFullYear(),
+      now.getMonth() + 1, // Les mois commencent à 0 en JavaScript
+      now.getDate(),
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds()
+    ];
+  }
+
+  /**
+   * Formate le nom du fichier pour l'affichage
+   */
+  getFileName(): string {
+    return this.newReport.file ? this.newReport.file.name : 'Aucun fichier choisi';
+  }
+
+  /**
+   * Vérifie si un fichier est sélectionné
+   */
+  hasFileSelected(): boolean {
+    return !!this.newReport.file;
   }
 }

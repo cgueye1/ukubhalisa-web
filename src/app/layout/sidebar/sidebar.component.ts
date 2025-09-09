@@ -42,7 +42,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
     if (this.authService.isAuthenticated()) {
       const userSubscription = this.authService.refreshUser().subscribe({
         next: (user) => {
-          console.log('Utilisateur chargé dans la sidebar:', user);
           // Réinitialiser le menu actif après le chargement de l'utilisateur
           this.initializeActiveMenu();
         },

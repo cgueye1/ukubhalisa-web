@@ -55,19 +55,25 @@ export class ProjectPresentationComponent implements OnInit {
     'SECOND_OEUVRE': 'Second œuvre',
     'FINITION': 'Finition'
   };
-
   private loadProjectDetails(id: number): void {
     this.loading = true;
     this.error = null;
-
+  
     this.realEstateService.getRealEstateDetails(id).subscribe({
       next: (response) => {
-        this.projet = response.realEstateProperty;
+        // Vérification que response existe et a la propriété realEstateProperty
+        if (response && response.realEstateProperty) {
+          this.projet = response.realEstateProperty;
+        } else {
+          // Si realEstateProperty n'existe pas, utiliser response directement
+          this.projet = response || null;
+        }
         this.loading = false;
       },
       error: (error) => {
         console.error('Erreur lors du chargement du projet:', error);
         this.error = 'Erreur lors du chargement des détails du projet';
+        this.projet = null; // Réinitialiser à null en cas d'erreur
         this.loading = false;
       }
     });
