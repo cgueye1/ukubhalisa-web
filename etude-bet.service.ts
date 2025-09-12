@@ -2,6 +2,17 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+export interface Comment {
+  id: number;
+  content: string;
+  createdAt: number[];
+  authorId: number;
+  authorName: string;
+}
+export interface CreateCommentRequest {
+  content: string;
+}
+
 export interface Report {
   id: number;
   title: string;
@@ -188,4 +199,27 @@ export class EtudeBetService {
       observer.complete();
     });
   }
+  /**
+   * Crée un nouveau commentaire pour une étude
+   * @param studyRequestId ID de l'étude
+   * @param userId ID de l'utilisateur
+   * @param commentData Données du commentaire
+   * @returns Observable<any>
+   */
+  createComment(studyRequestId: number, userId: number, commentData: CreateCommentRequest): Observable<any> {
+    return this.http.post(
+      `${this.apiUrl}api/study-requests/comment/study/${studyRequestId}/users/${userId}`,
+      commentData
+    );
+  } 
+    /**
+   * Récupère les commentaires d'une étude
+   * @param studyRequestId ID de l'étude
+   * @returns Observable<Comment[]> Liste des commentaires
+   */
+    getComment(studyRequestId: number): Observable<Comment[]> {
+      return this.http.get<Comment[]>(
+        `${this.apiUrl}api/study-requests/comments/${studyRequestId}`
+      );
+    }
 }

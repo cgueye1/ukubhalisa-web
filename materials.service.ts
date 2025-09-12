@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpErrorResponse } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
-import { catchError, retry } from 'rxjs/operators';
+import { catchError, retry, tap } from 'rxjs/operators';
 
 
 // Ajoutez cette interface au début du fichier avec les autres interfaces
@@ -471,18 +471,33 @@ getCommand(propertyId: number, page: number = 0, size: number = 10): Observable<
   );
 }
 getLivraison(propertyId: number, page: number = 0, size: number = 10): Observable<OrdersResponse> {
+  // Utiliser la bonne URL avec /property/
+  const url = `https://wakana.online/api/orders/property/${propertyId}/delivery`;
+  
   const params = new HttpParams()
     .set('page', page.toString())
     .set('size', size.toString());
 
-  return this.http.get<OrdersResponse>(
-    `https://wakana.online/api/orders/supplier/${propertyId}/delivery`,
-    { 
-      params,
-      headers: this.getHeaders() 
-    }
-  ).pipe(
-    catchError(this.handleError)
+  console.log('Requête livraison - URL:', url);
+  console.log('Requête livraison - Params:', { page, size });
+
+  return this.http.get<OrdersResponse>(url, { 
+    params,
+    headers: this.getHeaders() 
+  }).pipe(
+    tap((response: any) => {
+      console.log('Réponse livraison reçue:', response);
+    }),
+    catchError(error => {
+      console.error('Erreur détaillée dans getLivraison:', {
+        status: error.status,
+        statusText: error.statusText,
+        url: error.url,
+        message: error.message,
+        error: error.error
+      });
+      return this.handleError(error);
+    })
   );
 }
 /**

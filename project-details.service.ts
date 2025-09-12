@@ -10,6 +10,7 @@
     remainingBudget: number;
   }
   export interface CreateTaskRequest {
+    
     title: string;
     description: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -20,6 +21,17 @@
     pictures: string[]; // Tableau de base64 strings
   }
 
+  export interface UpdateTaskRequest {
+    status: string; // Rendre obligatoire au lieu de optionnel
+    title?: string;
+    description?: string;
+    priority?: string;
+    startDate?: string;
+    endDate?: string;
+    realEstatePropertyId?: number;
+    executorIds?: number[];
+    pictures?: string[];
+  }
   export interface ProgressAlbum {
     id: number;
     phaseName: string;
@@ -425,7 +437,7 @@ export interface CreateExpenseRequest {
   providedIn: 'root'
 })
 export class ProjectBudgetService {
-  private baseUrl = 'https://wakana.online/api';
+  private baseUrl = 'https://wakana.online/api/';
 
   constructor(private http: HttpClient) {}
 
@@ -532,6 +544,70 @@ export class ProjectBudgetService {
       })
     );
   }
+  updateTaskStatus(id: number, status: string): Observable<any> {
+    const headers = this.getAuthHeaders(true);
+    
+    const formData = new FormData();
+    formData.append('status', status);
+    
+    console.log('Mise à jour du statut de la tâche:', { id, status });
+    
+    return this.http.put<any>(
+      `${this.baseUrl}/tasks/${id}`,
+      formData,
+      { headers }
+    ).pipe(
+      catchError((error) => {
+        console.error('Erreur lors de la mise à jour du statut:', error);
+        return this.handleError(error);
+      })
+    );
+  }
+
+// Dans votre service
+updateTask(id: number, taskData: UpdateTaskRequest ): Observable<any> {
+  const headers = this.getAuthHeaders(true);
+  
+  const formData = new FormData();
+  
+  // Ajouter seulement les champs présents dans la requête
+  if (taskData.title !== undefined) formData.append('title', taskData.title || '');
+  if (taskData.description !== undefined) formData.append('description', taskData.description || '');
+  if (taskData.priority !== undefined) formData.append('priority', taskData.priority || '');
+  if (taskData.startDate !== undefined) formData.append('startDate', taskData.startDate || '');
+  if (taskData.endDate !== undefined) formData.append('endDate', taskData.endDate || '');
+  if (taskData.status !== undefined) formData.append('status', taskData.status || '');
+  if (taskData.realEstatePropertyId !== undefined) {
+    formData.append('realEstatePropertyId', taskData.realEstatePropertyId.toString());
+  }
+  
+  // Ajouter les executors si présents
+  if (taskData.executorIds && taskData.executorIds.length > 0) {
+    taskData.executorIds.forEach((executorId) => {
+      formData.append('executorIds', executorId.toString());
+    });
+  }
+  
+  // Ajouter les images si présentes
+  if (taskData.pictures && taskData.pictures.length > 0) {
+    taskData.pictures.forEach((pictureBase64: string) => {
+      formData.append('pictures', pictureBase64);
+    });
+  }
+  
+  console.log('Mise à jour de la tâche:', { id, data: taskData });
+  
+  return this.http.put<any>(
+    `${this.baseUrl}tasks/${id}`,
+    formData,
+    { headers }
+  ).pipe(
+    catchError((error) => {
+      console.error('Erreur lors de la mise à jour de tâche:', error);
+      return this.handleError(error);
+    })
+  );
+}
   // Méthode utilitaire pour convertir base64 en Blob
   private base64ToBlob(base64: string): Blob {
     try {
@@ -720,21 +796,62 @@ export class ProjectBudgetService {
       .pipe(catchError(this.handleError));
   }
 
-  saveDocument(document: any): Observable<any> {
-    const headers = this.getAuthHeaders();
-    return this.http.post<any>(`${this.baseUrl}/documents/add`, document, { headers })
-      .pipe(catchError(this.handleError));
+  saveDocument(formData: FormData): Observable<any> {
+    const headers = this.getAuthHeaders(true);
+  
+    // Ajouter les champs requis même s'ils sont vides
+    const requiredFields = ['title', 'description', 'realEstatePropertyId', 'typeId', 'startDate', 'endDate'];
+    requiredFields.forEach(field => {
+      if (!formData.has(field)) {
+        formData.append(field, '');
+      }
+    });
+  
+    if (!formData.has('file')) {
+      formData.append('file', '');
+    }
+  
+    // Log des clés et valeurs du FormData avec assertion de type
+    console.log('Envoi FormData pour document avec champs:');
+    for (const [key, value] of (formData as any).entries()) {
+      console.log(`${key}: ${value instanceof File ? value.name : value}`);
+    }
+  
+    // Vérifier le token
+    const token = headers.get('Authorization')?.replace('Bearer ', '');
+    console.log('Token envoyé:', token ? token.substring(0, 20) + '...' : 'Aucun token');
+  
+    return this.http.post<any>(`${this.baseUrl}documents/add`, formData, { headers })
+      .pipe(
+        catchError((error) => {
+          console.error('Erreur détaillée lors de la création du document:', error);
+          return this.handleError(error);
+        })
+      );
   }
+  
 
   getSignalement(propertyId: number, page: number = 0, size: number = 10): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.baseUrl}/incidents?propertyId=${propertyId}&page=${page}&size=${size}`, { headers })
       .pipe(catchError(this.handleError));
   }
-
-  saveSignalement(signalement: any): Observable<any> {
-    const headers = this.getAuthHeaders();
-    return this.http.post<any>(`${this.baseUrl}/incidents/save`, signalement, { headers })
+// Dans project-budget.service.ts
+saveSignalementWithFormData(formData: FormData): Observable<any> {
+  const headers = this.getAuthHeaders(true);
+  return this.http.post<any>(`${this.baseUrl}/incidents/save`, formData, { headers })
+    .pipe(catchError(this.handleError));
+}
+  saveSignalement(data: CreateSignalementRequest | FormData): Observable<any> {
+    let headers: HttpHeaders;
+    
+    if (data instanceof FormData) {
+      headers = this.getAuthHeaders(true); // Headers pour FormData
+    } else {
+      headers = this.getAuthHeaders(); // Headers pour JSON
+    }
+    
+    return this.http.post<any>(`${this.baseUrl}/incidents/save`, data, { headers })
       .pipe(catchError(this.handleError));
   }
 
