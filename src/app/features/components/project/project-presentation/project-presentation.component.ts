@@ -6,7 +6,7 @@ import { ProjectBudgetComponent } from '../project-budget/project-budget.compone
 import { ActivatedRoute } from '@angular/router';
 import { RealEstateProject, RealestateService } from '../../../../core/services/realestate.service';
 import { DashboardService, PhaseIndicator } from '../../../../../services/dashboard.service';
-import { ProjectBudgetService, BudgetResponse } from '../../../../../services/project-details.service'; // Ajout de l'import
+import { ProjectBudgetService, BudgetResponse } from '../../../../../services/project-details.service';
 import { catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 
@@ -21,7 +21,7 @@ export class ProjectPresentationComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private realEstateService = inject(RealestateService);
   private dashboardService = inject(DashboardService);
-  private projectBudgetService = inject(ProjectBudgetService); // Injection du service
+  private projectBudgetService = inject(ProjectBudgetService);
 
   projet: RealEstateProject | null = null;
   loading = true;
@@ -32,7 +32,6 @@ export class ProjectPresentationComponent implements OnInit {
   isLoadingProgress = true;
   progressError: string | null = null;
   
-  // Propriétés pour le budget
   budgetUtilise: number = 0;
   budgetTotal: number = 0;
   progressionBudgetaire: number = 0;
@@ -46,7 +45,7 @@ export class ProjectPresentationComponent implements OnInit {
       const projectId = +id;
       this.loadProjectDetails(projectId);
       this.loadProgression();
-      this.loadBudget(projectId); // Chargement du budget
+      this.loadBudget(projectId);
     }
   }
 
@@ -55,17 +54,16 @@ export class ProjectPresentationComponent implements OnInit {
     'SECOND_OEUVRE': 'Second œuvre',
     'FINITION': 'Finition'
   };
+
   private loadProjectDetails(id: number): void {
     this.loading = true;
     this.error = null;
   
     this.realEstateService.getRealEstateDetails(id).subscribe({
       next: (response) => {
-        // Vérification que response existe et a la propriété realEstateProperty
         if (response && response.realEstateProperty) {
           this.projet = response.realEstateProperty;
         } else {
-          // Si realEstateProperty n'existe pas, utiliser response directement
           this.projet = response || null;
         }
         this.loading = false;
@@ -73,7 +71,7 @@ export class ProjectPresentationComponent implements OnInit {
       error: (error) => {
         console.error('Erreur lors du chargement du projet:', error);
         this.error = 'Erreur lors du chargement des détails du projet';
-        this.projet = null; // Réinitialiser à null en cas d'erreur
+        this.projet = null;
         this.loading = false;
       }
     });
@@ -101,7 +99,6 @@ export class ProjectPresentationComponent implements OnInit {
     });
   }
 
-  // Nouvelle méthode pour charger le budget
   private loadBudget(propertyId: number): void {
     this.isLoadingBudget = true;
     this.budgetError = null;
@@ -119,14 +116,12 @@ export class ProjectPresentationComponent implements OnInit {
         this.budgetTotal = budgetResponse.plannedBudget;
         this.budgetUtilise = budgetResponse.consumedBudget;
         
-        // Calcul du pourcentage d'utilisation du budget
         if (this.budgetTotal > 0) {
           this.progressionBudgetaire = Math.round((this.budgetUtilise / this.budgetTotal) * 100);
         } else {
           this.progressionBudgetaire = 0;
         }
       } else {
-        // Valeurs par défaut en cas d'erreur
         this.budgetTotal = 0;
         this.budgetUtilise = 0;
         this.progressionBudgetaire = 0;
@@ -175,11 +170,11 @@ export class ProjectPresentationComponent implements OnInit {
 
   getGradientBackgroundDetail(percentage: number): string {
     if (percentage <= 30) {
-      return 'linear-gradient(90deg, #FE6102 100%)'; // Rouge
+      return 'linear-gradient(90deg, #FE6102 100%)';
     } else if (percentage <= 70) {
-      return 'linear-gradient(90deg, #FE6102 100%)'; // Orange
+      return 'linear-gradient(90deg, #FE6102 100%)';
     } else {
-      return 'linear-gradient(90deg, #FE6102 100%)'; // Vert
+      return 'linear-gradient(90deg, #FE6102 100%)';
     }
   }
 
@@ -191,6 +186,7 @@ export class ProjectPresentationComponent implements OnInit {
     if (!this.projet) return [];
     const equipements = [];
 
+    // Hall d'entrée
     if (this.projet.hasHall) {
       equipements.push({
         icon: 'assets/images/project-icons/hall1.png',
@@ -199,43 +195,111 @@ export class ProjectPresentationComponent implements OnInit {
       });
     }
 
+    // Ascenseur
     if (this.projet.hasElevator) {
       equipements.push({
         icon: 'assets/images/project-icons/escalier.svg',
-        nom: 'Escaliers et ascenseurs',
-        description: 'Zones permettant d\'accéder aux différents niveaux'
+        nom: 'Ascenseur',
+        description: 'Accès aux différents niveaux'
       });
     }
 
-    equipements.push({
-      icon: 'assets/images/project-icons/couloir.png',
-      nom: 'Couloirs',
-      description: 'Espaces de circulation entre les différentes unités'
-    });
-
-    if (this.projet.hasGarden || this.projet.hasSharedTerrace) {
-      equipements.push({
-        icon: 'assets/images/project-icons/hall.png',
-        nom: 'Jardins ou terrasses partagés',
-        description: 'Espaces extérieurs accessibles à tous'
-      });
-    }
-
-    if (this.projet.hasStorageRooms) {
-      equipements.push({
-        icon: 'assets/images/project-icons/locaux.png',
-        nom: 'Locaux Techniques',
-        description: 'Espaces dédiés aux installations'
-      });
-    }
-
+    // Parking
     if (this.projet.hasParking) {
       equipements.push({
         icon: 'assets/images/project-icons/parking.png',
-        nom: 'Parkings communs',
-        description: 'Espaces de stationnement partagés'
+        nom: 'Parking',
+        description: 'Espaces de stationnement'
       });
     }
+
+    // Piscine
+    if (this.projet.hasSwimmingPool) {
+      equipements.push({
+        icon: 'assets/images/project-icons/piscine.png', // Assurez-vous d'avoir cette icône
+        nom: 'Piscine',
+        description: 'Bassin de natation'
+      });
+    }
+
+    // Gym
+    if (this.projet.hasGym) {
+      equipements.push({
+        icon: 'assets/images/project-icons/gym.png',
+        nom: 'Salle de sport',
+        description: 'Espace fitness équipé'
+      });
+    }
+
+    // Terrain de jeux
+    if (this.projet.hasPlayground) {
+      equipements.push({
+        icon: 'assets/images/project-icons/playground.png',
+        nom: 'Terrain de jeux',
+        description: 'Espace de jeux pour enfants'
+      });
+    }
+
+    // Service de sécurité
+    if (this.projet.hasSecurityService) {
+      equipements.push({
+        icon: 'assets/images/project-icons/security.png',
+        nom: 'Service de sécurité',
+        description: 'Surveillance 24/7'
+      });
+    }
+
+    // Jardin
+    if (this.projet.hasGarden) {
+      equipements.push({
+        icon: 'assets/images/project-icons/garden.png',
+        nom: 'Jardin',
+        description: 'Espace vert paysager'
+      });
+    }
+
+    // Terrasse partagée
+    if (this.projet.hasSharedTerrace) {
+      equipements.push({
+        icon: 'assets/images/project-icons/terrace.png',
+        nom: 'Terrasse partagée',
+        description: 'Espace extérieur commun'
+      });
+    }
+
+    // Stockage vélos
+    if (this.projet.hasBicycleStorage) {
+      equipements.push({
+        icon: 'assets/images/project-icons/bicycle.png',
+        nom: 'Local à vélos',
+        description: 'Stationnement sécurisé pour vélos'
+      });
+    }
+
+    // Laverie
+    if (this.projet.hasLaundryRoom) {
+      equipements.push({
+        icon: 'assets/images/project-icons/laundry.png',
+        nom: 'Laverie',
+        description: 'Espace buanderie commun'
+      });
+    }
+
+    // Locaux de stockage
+    if (this.projet.hasStorageRooms) {
+      equipements.push({
+        icon: 'assets/images/project-icons/storage.png',
+        nom: 'Locaux de stockage',
+        description: 'Espaces de rangement individuels'
+      });
+    }
+
+    // Couloirs (toujours présent)
+    equipements.push({
+      icon: 'assets/images/project-icons/couloir.png',
+      nom: 'Couloirs',
+      description: 'Espaces de circulation'
+    });
 
     return equipements;
   }

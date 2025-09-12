@@ -403,22 +403,38 @@
         <!-- Comments -->
         <div>
           <h3 class="text-lg font-semibold mb-4">Commentaires</h3>
-          <div class="text-center py-8 text-gray-500 italic">
-            Aucun commentaire
-          </div>
           
-          <!-- Add Comment aligned with "Aucun rapport" -->
-          <div class="mt-4 flex items-end">
+          <!-- Liste des commentaires -->
+          <div *ngIf="comments.length > 0; else noComments" class="space-y-4 mb-4 max-h-96 overflow-y-auto">
+            <div *ngFor="let comment of comments" class="bg-gray-50 p-4 rounded-lg">
+              <div class="flex justify-between items-start mb-2">
+                <span class="font-semibold text-gray-800">{{ comment.authorName }}</span>
+                <span class="text-sm text-gray-500">{{ formatCommentDate(comment.createdAt) }}</span>
+              </div>
+              <p class="text-gray-700">{{ comment.content }}</p>
+            </div>
+          </div>
+
+          <ng-template #noComments>
+            <div class="text-center py-8 text-gray-500 italic">
+              Aucun commentaire
+            </div>
+          </ng-template>
+          
+          <!-- Formulaire d'ajout de commentaire -->
+          <div class="mt-4">
             <div class="flex gap-2 w-full">
               <input 
                 #commentInput
                 type="text" 
                 placeholder="Ajouter un commentaire......"
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                (keyup.enter)="addCommentDetail(commentInput.value); commentInput.value=''">
               <button 
-                (click)="addComment(selectedEtude!, commentInput.value); commentInput.value=''"
+                (click)="addCommentDetail(commentInput.value); commentInput.value=''"
                 class="px-6 py-2 text-white rounded-lg font-medium hover:opacity-90"
-                style="background-color: #FF5C01;">
+                style="background-color: #FF5C01;"
+                [disabled]="!commentInput.value.trim()">
                 Envoyer
               </button>
             </div>

@@ -31,6 +31,7 @@ export class LoginComponent implements OnInit {
 
   // Regex pour validation
   private readonly phoneRegex = /^7[05678]\d{7}$/;
+  private readonly emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   private readonly passwordRegex = /^.{6,}$/;
 
   // Formulaires réactifs
@@ -42,11 +43,11 @@ export class LoginComponent implements OnInit {
     private authService: AuthService,
     private router: Router
   ) {
-    // Formulaire de connexion
+    // Formulaire de connexion - utilise un validateur personnalisé
     this.loginForm = this.fb.group({
       email: ['', [
         Validators.required,
-        Validators.pattern(this.phoneRegex)
+        this.emailOrPhoneValidator.bind(this)
       ]],
       password: ['', [
         Validators.required,
@@ -58,7 +59,7 @@ export class LoginComponent implements OnInit {
     this.registerForm = this.fb.group({
       email: ['', [
         Validators.required,
-        Validators.pattern(this.phoneRegex)
+        this.emailOrPhoneValidator.bind(this)
       ]],
       password: ['', [
         Validators.required,
@@ -74,6 +75,31 @@ export class LoginComponent implements OnInit {
     }
   }
 
+  // Validateur personnalisé pour email ou téléphone
+  private emailOrPhoneValidator(control: any) {
+    if (!control.value) {
+      return null; // Laisse le required s'occuper des champs vides
+    }
+    
+    const value = control.value.toString().trim();
+    const isValidEmail = this.emailRegex.test(value);
+    const isValidPhone = this.phoneRegex.test(value);
+    
+    if (!isValidEmail && !isValidPhone) {
+      return { invalidFormat: true };
+    }
+    
+    return null;
+  }
+
+  // Helper pour détecter le type d'identifiant
+  private getIdentifierType(value: string): 'email' | 'phone' {
+    if (this.emailRegex.test(value)) {
+      return 'email';
+    }
+    return 'phone';
+  }
+
   // Computed signals pour les messages d'erreur
   get emailErrorMessage(): string {
     const form = this.getCurrentForm();
@@ -82,10 +108,10 @@ export class LoginComponent implements OnInit {
     if (!emailControl?.touched) return '';
     
     if (emailControl.hasError('required')) {
-      return 'Le numéro de téléphone est requis';
+      return 'L\'email ou le numéro de téléphone est requis';
     }
-    if (emailControl.hasError('pattern')) {
-      return 'Format invalide. Utilisez le format: 7XXXXXXXX (ex: 771234567)';
+    if (emailControl.hasError('invalidFormat')) {
+      return 'Format invalide. Utilisez un email valide ou un numéro au format 7XXXXXXXX (ex: 771234567)';
     }
     return '';
   }
@@ -108,6 +134,16 @@ export class LoginComponent implements OnInit {
   // Helper pour obtenir le formulaire actuel
   private getCurrentForm(): FormGroup {
     return this.activeTab() === 'connexion' ? this.loginForm : this.registerForm;
+  }
+
+  // Helper pour obtenir le placeholder du champ email/téléphone
+  get emailPlaceholder(): string {
+    return 'Email ou numéro de téléphone (ex: user@example.com ou 771234567)';
+  }
+
+  // Helper pour obtenir le label du champ
+  get emailLabel(): string {
+    return 'Email ou Téléphone';
   }
 
   navigateToRegister(): void {
@@ -166,14 +202,21 @@ export class LoginComponent implements OnInit {
     this.isLoading.set(true);
     this.hideAlert();
   
+    const emailValue = this.loginForm.get('email')?.value;
     const credentials = {
-      email: this.loginForm.get('email')?.value,
+      email: emailValue,
       password: this.loginForm.get('password')?.value
     };
 
+    const identifierType = this.getIdentifierType(emailValue);
+    console.log('🚀 Tentative de connexion avec:', { 
+      identifier: credentials.email, 
+      type: identifierType 
+    });
   
     this.authService.login(credentials).subscribe({
       next: (response) => {
+        console.log('📥 Réponse serveur complète:', response);
         
         // Attendre un délai pour s'assurer que toutes les données sont sauvegardées
         setTimeout(() => {
@@ -188,9 +231,9 @@ export class LoginComponent implements OnInit {
     });
   }
   
-
   private processLoginSuccess(response: any): void {
     try {
+      console.log('📥 Réponse serveur complète:', response);
       
       // Méthode principale: lire le profil directement depuis le token JWT
       let isBET = false;
@@ -198,17 +241,21 @@ export class LoginComponent implements OnInit {
       try {
         // Décoder le payload JWT
         const payload = JSON.parse(atob(response.token.split('.')[1]));
+        console.log('🔍 Payload JWT:', payload);
         
         // Vérifier le profil dans différentes propriétés possibles
         const profile = payload.profil || payload.profile || payload.role;
         isBET = profile === 'BET';
         
+        console.log('✅ Profil détecté:', profile, 'isBET:', isBET);
         
       } catch (tokenError) {
+        console.error('❌ Impossible de lire le token, utilisation du service:', tokenError);
         
         // Fallback: utiliser le service auth après un court délai
         setTimeout(() => {
           const isBETFallback = this.authService.isBETProfile();
+          console.log('🔄 Fallback - Vérification BET par service:', isBETFallback);
           this.isLoading.set(false);
           this.redirectToDashboard(isBETFallback);
         }, 300);
@@ -220,11 +267,11 @@ export class LoginComponent implements OnInit {
       this.redirectToDashboard(isBET);
       
     } catch (error) {
+      console.error('❌ Erreur critique lors du traitement:', error);
       this.isLoading.set(false);
       this.redirectToDashboard(false);
     }
   }
-
 
   private redirectToDashboard(isBET?: boolean): void {
     // Si isBET n'est pas spécifié, le détecter
@@ -232,8 +279,10 @@ export class LoginComponent implements OnInit {
       isBET = this.authService.isBETProfile();
     }
 
+    console.log('🎯 Redirection finale - isBET:', isBET);
 
     if (isBET) {
+      console.log('✅ Redirection vers dashboard-etude');
       this.router.navigate(['/dashboard-etude']).then(success => {
         if (success) {
           this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace BET.');
@@ -245,6 +294,7 @@ export class LoginComponent implements OnInit {
         }
       });
     } else {
+      console.log('✅ Redirection vers dashboard standard');
       this.router.navigate(['/dashboard']).then(success => {
         if (success) {
           this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace.');
@@ -257,7 +307,7 @@ export class LoginComponent implements OnInit {
     let errorMessage = 'Erreur de connexion';
     
     if (err.status === 401) {
-      errorMessage = 'Numéro de téléphone ou mot de passe incorrect';
+      errorMessage = 'Email/téléphone ou mot de passe incorrect';
     } else if (err.status === 0) {
       errorMessage = 'Impossible de se connecter au serveur. Vérifiez votre connexion internet.';
     } else if (err.status === 403) {

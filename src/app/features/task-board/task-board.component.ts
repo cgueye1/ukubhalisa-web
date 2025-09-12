@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Subject, takeUntil, finalize } from 'rxjs';
 import { 
   CreateTaskRequest,
+  UpdateTaskRequest,
   ProjectBudgetService, 
   Task, 
   TasksResponse 
@@ -18,7 +19,6 @@ interface User {
   id: number;
   avatarUrl: string;
   name: string;
-  
 }
 
 interface TaskTag {
@@ -56,7 +56,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
 
   columns: TaskColumn[] = [];
   users: User[] = [];
-  workers: Worker[] = []; // Liste des workers disponibles
+  workers: Worker[] = [];
   
   // Form data
   newTask: Partial<Task> = {};
@@ -71,6 +71,12 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
   error: string | null = null;
   errorMessage: string | null = null;
   successMessage: string | null = null;
+  
+  // Drag and drop state
+  draggedTask: TaskDisplay | null = null;
+  isDragging = false;
+  dragOverColumn: string | null = null;
+  isUpdatingTaskStatus = false;
   
   // Pagination
   currentPage = 0;
@@ -111,14 +117,14 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     this.currentPropertyId = propertyId;
     this.currentTask.realEstateProperty = { id: propertyId };
     this.loadTasks();
-    this.loadWorkers(); // Charger les workers quand la propriété change
+    this.loadWorkers();
   }
 
   initializeWithProperty(propertyId: number): void {
     this.currentPropertyId = propertyId;
     this.currentTask.realEstateProperty = { id: propertyId };
     this.initializeUsers();
-    this.loadWorkers(); // Charger les workers
+    this.loadWorkers();
     this.loadTasks();
   }
 
@@ -127,7 +133,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     this.resetCurrentTask();
     
     if (this.currentPropertyId) {
-      this.loadWorkers(); // Charger les workers au démarrage
+      this.loadWorkers();
       this.loadTasks();
     }
   }
@@ -138,12 +144,11 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
   }
 
   private initializeUsers(): void {
-    // Initialiser avec des utilisateurs vides, seront remplacés par les workers
     this.users = [];
   }
 
   private loadWorkers(): void {
-    this.utilisateurService.listUsers(0, 100) // Charger jusqu'à 100 workers
+    this.utilisateurService.listUsers(0, 100)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: WorkersResponse) => {
@@ -152,7 +157,6 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('Erreur lors du chargement des workers:', error);
-          // Garder les utilisateurs mockés en cas d'erreur
           this.users = [
             { id: 1, avatarUrl: 'assets/images/av1.png', name: 'Ouvrier 1' },
             { id: 2, avatarUrl: 'assets/images/av2.png', name: 'Ouvrier 2' },
@@ -163,16 +167,16 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
       });
   }
 
-private mapWorkersToUsers(workers: Worker[]): User[] {
-  return workers.map((worker, index) => {
-    console.log('Worker photo:', worker.photo); // Debug
-    return {
-      id: worker.id,
-      avatarUrl: worker.photo || this.getDefaultAvatar(index),
-      name: `${worker.prenom} ${worker.nom}`
-    };
-  });
-}
+  private mapWorkersToUsers(workers: Worker[]): User[] {
+    return workers.map((worker, index) => {
+      console.log('Worker photo:', worker.photo);
+      return {
+        id: worker.id,
+        avatarUrl: worker.photo || this.getDefaultAvatar(index),
+        name: `${worker.prenom} ${worker.nom}`
+      };
+    });
+  }
 
   private getDefaultAvatar(index: number): string {
     const defaultAvatars = [
@@ -281,7 +285,6 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
     if (!executors || executors.length === 0) return [];
     
     return executors.slice(0, 3).map((executor) => {
-      // Trouver le worker correspondant ou utiliser un utilisateur par défaut
       const worker = this.workers.find(w => w.id === executor.id);
       if (worker) {
         return {
@@ -291,7 +294,6 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
         };
       }
       
-      // Fallback si le worker n'est pas trouvé
       return {
         id: executor.id,
         avatarUrl: 'assets/images/default-avatar.png',
@@ -352,6 +354,276 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
       pictures: []
     };
   }
+
+  // ================== DRAG AND DROP METHODS ==================
+
+  /**
+   * Démarre le drag d'une tâche
+   */
+  onDragStart(event: DragEvent, task: TaskDisplay): void {
+    console.log('🎯 Début du drag de la tâche:', task.title);
+    
+    if (event.dataTransfer && task.id) {
+      this.draggedTask = { ...task }; // Clone de la tâche pour éviter les modifications directes
+      this.isDragging = true;
+      
+      // Stocker l'ID de la tâche et son statut actuel
+      event.dataTransfer.setData('application/json', JSON.stringify({
+        taskId: task.id,
+        originalStatus: task.status,
+        taskTitle: task.title
+      }));
+      event.dataTransfer.effectAllowed = 'move';
+      
+      // Ajouter une classe CSS pour l'effet visuel
+      if (event.target instanceof HTMLElement) {
+        event.target.classList.add('dragging');
+      }
+    }
+  }
+
+  /**
+   * Fin du drag (nettoyage)
+   */
+  onDragEnd(event: DragEvent): void {
+    console.log('🏁 Fin du drag');
+    
+    this.draggedTask = null;
+    this.isDragging = false;
+    this.dragOverColumn = null;
+    
+    // Retirer la classe CSS
+    if (event.target instanceof HTMLElement) {
+      event.target.classList.remove('dragging');
+    }
+  }
+
+  /**
+   * Survol d'une zone de drop (colonne)
+   */
+  onDragOver(event: DragEvent, columnId?: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    
+    // Mettre à jour la colonne survolée pour l'effet visuel
+    if (columnId && this.isDragging) {
+      this.dragOverColumn = columnId;
+    }
+  }
+
+  /**
+   * Quitte une zone de drop
+   */
+  onDragLeave(event: DragEvent, columnId: string): void {
+    // Ne retirer l'effet que si on sort vraiment de la colonne
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (this.dragOverColumn === columnId) {
+        this.dragOverColumn = null;
+      }
+    }
+  }
+
+  /**
+   * Drop d'une tâche dans une colonne
+   */
+  onDrop(event: DragEvent, targetStatus: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('📥 Drop dans la colonne:', targetStatus);
+    
+    this.dragOverColumn = null;
+    
+    if (!event.dataTransfer) {
+      console.warn('⚠️ Pas de dataTransfer disponible');
+      return;
+    }
+
+    // Récupérer les données de la tâche
+    let dragData;
+    try {
+      const dataTransferText = event.dataTransfer.getData('application/json');
+      if (!dataTransferText) {
+        console.warn('⚠️ Pas de données disponibles dans dataTransfer');
+        return;
+      }
+      dragData = JSON.parse(dataTransferText);
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la parsing des données de drag:', error);
+      return;
+    }
+
+    const { taskId, originalStatus, taskTitle } = dragData;
+    
+    if (!taskId || isNaN(Number(taskId))) {
+      console.warn('⚠️ ID de tâche invalide:', taskId);
+      return;
+    }
+
+    // Vérifier si le statut a réellement changé
+    if (originalStatus === targetStatus) {
+      console.log('ℹ️ La tâche est déjà dans cette colonne');
+      return;
+    }
+
+    console.log('🔄 Changement de statut demandé:', originalStatus, '->', targetStatus);
+    
+    // Trouver la tâche dans les colonnes
+    const task = this.findTaskById(Number(taskId));
+    if (!task) {
+      console.warn('⚠️ Tâche introuvable avec l\'ID:', taskId);
+      return;
+    }
+
+    // Mettre à jour le statut immédiatement dans l'interface (optimistic update)
+    const originalTaskData = { ...task };
+    this.updateTaskStatusLocally(task, targetStatus);
+    
+    // Puis sauvegarder sur le serveur
+    this.updateTaskStatusOnServer(Number(taskId), targetStatus, originalTaskData, taskTitle);
+  }
+
+  /**
+   * Trouve une tâche par son ID dans toutes les colonnes
+   */
+  private findTaskById(taskId: number): TaskDisplay | undefined {
+    for (const column of this.columns) {
+      const task = column.tasks.find(t => t.id === taskId);
+      if (task) return task;
+    }
+    return undefined;
+  }
+
+  /**
+   * Met à jour le statut d'une tâche localement (interface)
+   */
+  private updateTaskStatusLocally(task: TaskDisplay, newStatus: string): void {
+    const oldStatus = task.status;
+    
+    // Retirer la tâche de son ancienne colonne
+    const oldColumn = this.columns.find(col => col.id === oldStatus);
+    if (oldColumn) {
+      const taskIndex = oldColumn.tasks.findIndex(t => t.id === task.id);
+      if (taskIndex > -1) {
+        oldColumn.tasks.splice(taskIndex, 1);
+        oldColumn.count = oldColumn.tasks.length;
+      }
+    }
+    
+    // Ajouter la tâche à sa nouvelle colonne
+    const newColumn = this.columns.find(col => col.id === newStatus);
+    if (newColumn) {
+      task.status = newStatus as any;
+      task.isDone = newStatus === 'COMPLETED';
+      newColumn.tasks.push(task);
+      newColumn.count = newColumn.tasks.length;
+    }
+    
+    console.log('✅ Mise à jour locale terminée');
+  }
+
+  /**
+   * Met à jour le statut d'une tâche sur le serveur
+   */
+  private updateTaskStatusOnServer(taskId: number, newStatus: string, originalTaskData: TaskDisplay, taskTitle: string): void {
+    if (this.isUpdatingTaskStatus) {
+      console.log('⏳ Mise à jour déjà en cours...');
+      return;
+    }
+
+    this.isUpdatingTaskStatus = true;
+    
+    console.log('📤 Envoi de la mise à jour au serveur:', { taskId, status: newStatus });
+
+    // Utiliser la méthode updateTaskStatus du service
+    this.projectBudgetService.updateTaskStatus(taskId, newStatus)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isUpdatingTaskStatus = false;
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          console.log('✅ Statut mis à jour avec succès sur le serveur:', response);
+          this.successMessage = `Tâche "${taskTitle}" déplacée vers "${this.getStatusColumnTitle(newStatus)}"`;
+          
+          // Auto-masquer le message de succès après 3 secondes
+          setTimeout(() => {
+            this.successMessage = null;
+          }, 3000);
+        },
+        error: (error) => {
+          console.error('❌ Erreur lors de la mise à jour du statut:', error);
+          
+          // Déterminer le message d'erreur approprié
+          let errorMsg = 'Erreur lors du déplacement de la tâche';
+          if (error.status === 403) {
+            errorMsg = 'Accès refusé. Vous n\'avez pas les permissions pour modifier cette tâche.';
+          } else if (error.status === 404) {
+            errorMsg = 'Tâche non trouvée.';
+          } else if (error.status === 401) {
+            errorMsg = 'Session expirée. Veuillez vous reconnecter.';
+          } else if (error.message) {
+            errorMsg = `Erreur: ${error.message}`;
+          }
+          
+          this.errorMessage = errorMsg;
+          
+          // Annuler le changement local en cas d'erreur
+          this.revertTaskStatusLocally(originalTaskData);
+          
+          // Auto-masquer le message d'erreur après 5 secondes
+          setTimeout(() => {
+            this.errorMessage = null;
+          }, 5000);
+        }
+      });
+  }
+
+  /**
+   * Annule un changement de statut local en cas d'erreur serveur
+   */
+  private revertTaskStatusLocally(originalTaskData: TaskDisplay): void {
+    console.log('🔄 Annulation du changement local...');
+    
+    // Trouver la tâche dans sa nouvelle position et la restaurer
+    const currentTask = this.findTaskById(originalTaskData.id!);
+    if (currentTask) {
+      // Retirer la tâche de sa position actuelle
+      const currentColumn = this.columns.find(col => col.tasks.includes(currentTask));
+      if (currentColumn) {
+        const taskIndex = currentColumn.tasks.indexOf(currentTask);
+        if (taskIndex > -1) {
+          currentColumn.tasks.splice(taskIndex, 1);
+          currentColumn.count = currentColumn.tasks.length;
+        }
+      }
+      
+      // Remettre la tâche dans sa colonne d'origine
+      const originalColumn = this.columns.find(col => col.id === originalTaskData.status);
+      if (originalColumn) {
+        // Restaurer les données originales
+        Object.assign(currentTask, originalTaskData);
+        originalColumn.tasks.push(currentTask);
+        originalColumn.count = originalColumn.tasks.length;
+      }
+    } else {
+      // Si on ne trouve pas la tâche, recharger toutes les tâches
+      console.warn('Impossible de trouver la tâche pour l\'annulation, rechargement complet...');
+      this.loadTasks();
+    }
+  }
+
+  // ================== END DRAG AND DROP METHODS ==================
 
   // Modal methods
   openModal(task?: Task) {
@@ -465,6 +737,26 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
     return `${year}-${month}-${day}`;
   }
 
+  /**
+   * Formate une date pour l'API (format MM-DD-YYYY)
+   */
+  private formatDateForApi(dateArray: number[] | string): string {
+    if (typeof dateArray === 'string') {
+      return dateArray;
+    }
+    
+    if (!dateArray || dateArray.length < 3) {
+      const now = new Date();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate().toString().padStart(2, '0');
+      const year = now.getFullYear();
+      return `${month}-${day}-${year}`;
+    }
+    
+    const [year, month, day] = dateArray;
+    return `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}-${year}`;
+  }
+
   resetForm(): void {
     this.closeModal();
     this.selectedFiles = [];
@@ -511,7 +803,6 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
   getExecutorDetails(executor: any): string {
     if (!executor) return 'Exécuteur non défini';
     
-    // Trouver le worker correspondant
     const worker = this.workers.find(w => w.id === executor.id);
     if (worker) {
       return `${worker.prenom || ''} ${worker.nom || ''}`.trim();
@@ -553,43 +844,6 @@ private mapWorkersToUsers(workers: Worker[]): User[] {
 
   trackByUserId(index: number, user: User): number {
     return user.id;
-  }
-
-  // Drag and drop
-  onDragStart(event: DragEvent, task: TaskDisplay): void {
-    if (event.dataTransfer) {
-      event.dataTransfer.setData('text/plain', task.id!.toString());
-    }
-  }
-
-  onDragOver(event: DragEvent): void {
-    event.preventDefault();
-  }
-
-  onDrop(event: DragEvent, targetStatus: string): void {
-    event.preventDefault();
-    
-    if (event.dataTransfer) {
-      const taskId = parseInt(event.dataTransfer.getData('text/plain'));
-      const task = this.findTaskById(taskId);
-      
-      if (task && task.status !== targetStatus) {
-        this.updateTaskStatus(task, targetStatus);
-      }
-    }
-  }
-
-  private findTaskById(taskId: number): TaskDisplay | undefined {
-    for (const column of this.columns) {
-      const task = column.tasks.find(t => t.id === taskId);
-      if (task) return task;
-    }
-    return undefined;
-  }
-
-  private updateTaskStatus(task: TaskDisplay, newStatus: string): void {
-    task.status = newStatus as any;
-    this.loadTasks();
   }
 
   closeTaskForm(): void {

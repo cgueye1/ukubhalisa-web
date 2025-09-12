@@ -39,11 +39,12 @@
   <!-- Task Board -->
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" *ngIf="!loading">
     <!-- Task Columns -->
-    <div 
-      *ngFor="let column of columns; trackBy: trackByColumnId"
-      class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[600px]"
-      (dragover)="onDragOver($event)"
-      (drop)="onDrop($event, column.id)">
+  <!-- Task Columns -->
+<div 
+*ngFor="let column of columns; trackBy: trackByColumnId"
+class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[600px]"
+(dragover)="onDragOver($event, column.id)"  
+(drop)="onDrop($event, column.id)">
       
       <!-- Column Header -->
       <div class="flex items-center justify-between mb-6">

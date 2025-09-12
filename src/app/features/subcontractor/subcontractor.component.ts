@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { UtilisateurService, Worker, WorkersResponse } from '../../../services/utilisateur.service'; // Ajustez le chemin
+import { UtilisateurService, Worker, WorkersResponse } from '../../../services/utilisateur.service';
 
 interface SubcontractorMember {
   id: number;
@@ -38,11 +38,11 @@ export class SubcontractorComponent implements OnInit {
   displayedMembers: SubcontractorMember[] = [];
   currentPage = 1;
   totalPages = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 5; // Changé de 10 à 5
   selectAll = false;
   totalMembers = 0;
   startIndex = 1;
-  endIndex = 10;
+  endIndex = 5; // Changé de 10 à 5
   searchQuery: string = '';
 
   constructor(private utilisateurService: UtilisateurService) {}
@@ -258,4 +258,3 @@ export class SubcontractorComponent implements OnInit {
     console.log('Export des données des sous-traitants');
   }
 }
-// le html 

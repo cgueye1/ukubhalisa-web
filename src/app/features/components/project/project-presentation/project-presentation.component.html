@@ -231,26 +231,21 @@
               </div>
             </div>
 
-            <!-- Équipements communs -->
-            <div class="mt-10">
-              <h3 class="text-xl font-bold text-gray-800 mb-6">Équipements communs</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div *ngFor="let equipement of equipementsCommuns" class="flex">
-                  <div class="mr-4">
-                    <img [src]="equipement.icon" [alt]="equipement.nom" class="w-8 h-8">
-                  </div>
-                  <div>
-                    <!-- Affiche la description seulement si projet.hasHall est true -->
-                    <p *ngIf="projet?.hasHall === true" class="text-gray-600">{{ projet.description }}</p>
-                    
-                    <!-- Optionnel: affiche un message si hasHall est false -->
-                    <p *ngIf="projet?.hasHall === false" class="text-gray-400 italic">Description non disponible (projet sans hall)</p>
-                    
-                    <!-- Ou si vous préférez ne rien afficher quand hasHall est false, supprimez la deuxième ligne -->
-                  </div>
-                </div>
-              </div>
-            </div>
+          <!-- Équipements communs -->
+<div class="mt-10">
+  <h3 class="text-xl font-bold text-gray-800 mb-6">Équipements communs</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div *ngFor="let equipement of equipementsCommuns" class="flex">
+      <div class="mr-4">
+        <img [src]="equipement.icon" [alt]="equipement.nom" class="w-8 h-8">
+      </div>
+      <div>
+        <h4 class="font-semibold text-gray-800">{{ equipement.nom }}</h4>
+        <p class="text-gray-600 text-sm">{{ equipement.description }}</p>
+      </div>
+    </div>
+  </div>
+</div>
           </div>
 
           <!-- Onglet État d'avancement -->

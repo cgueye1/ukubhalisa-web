@@ -1,70 +1,140 @@
-
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, Validators, AbstractControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { RealestateService, PropertyType, Promoter } from '../../../../core/services/realestate.service';
+import { ProjectService, ProjectData, ApiResponse } from '../../../../../services/projet.service';
 import { AuthService } from '../../../../features/auth/services/auth.service';
-import { Subject, takeUntil } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { CommonModule } from '@angular/common';
+
+// Interfaces pour les données de référence
+interface PropertyType {
+  id: number;
+  typename: string;
+}
+
+interface Promoter {
+  id: number;
+  name: string;
+}
+
+interface Moa {
+  id: number;
+  name: string;
+}
+
+interface Manager {
+  id: number;
+  name: string;
+}
 
 @Component({
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
   selector: 'app-new-project',
+  standalone:true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule  // Ajoutez cette ligne
+  ],
   templateUrl: './new-project.component.html',
-  styleUrls: ['./new-project.component.css']
+  styleUrls: ['./new-project.component.scss']
+  
 })
 export class NewProjectComponent implements OnInit, OnDestroy {
   projectForm!: FormGroup;
-  planFile?: File;
   isSubmitting = false;
+  isLoadingData = false;
+  loadingError: string | null = null;
+
+  // Données de référence
   propertyTypes: PropertyType[] = [];
   promoters: Promoter[] = [];
-  isLoadingData = false;
-  loadingError = '';
-  selectedFiles = { plan: null as string | null };
-  private destroy$ = new Subject<void>();
-managers: any;
-moas: any;
+  moas: Moa[] = [];
+  managers: Manager[] = [];
+
+  // Fichier plan
+  planFile: File | null = null;
+
+  // Subscription pour nettoyer les observables
+  private subscriptions: Subscription = new Subscription();
 
   constructor(
     private fb: FormBuilder,
-    private realestateService: RealestateService,
+    private projectService: ProjectService,
     private router: Router,
     private authService: AuthService
-  ) {}
+  ) {
+    this.initializeForm();
+  }
 
   ngOnInit(): void {
-    this.initializeForm();
-    this.loadInitialData();
+    this.loadReferenceData();
+    this.initializeUserData();
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    // Nettoyer les subscriptions pour éviter les fuites mémoire
+    this.subscriptions.unsubscribe();
   }
 
-  private initializeForm(): void {
-    const currentUser = this.authService.currentUser();
-    const currentUserId = currentUser?.id || null;
+  /**
+   * Initialise les données utilisateur et met à jour le formulaire
+   */
+  private initializeUserData(): void {
+    if (this.authService.isAuthenticated()) {
+      const userSubscription = this.authService.refreshUser().subscribe({
+        next: (user) => {
+          this.updateFormWithUserData();
+        },
+        error: (error) => {
+          console.error('Erreur lors du chargement de l\'utilisateur:', error);
+        }
+      });
+      
+      this.subscriptions.add(userSubscription);
+    } else {
+      // Si l'utilisateur n'est pas connecté, utiliser les données actuelles
+      this.updateFormWithUserData();
+    }
+  }
 
+  /**
+   * Met à jour le formulaire avec les données de l'utilisateur connecté
+   */
+  private updateFormWithUserData(): void {
+    const currentUser = this.authService.currentUser();
+    
+    if (currentUser && currentUser.id) {
+      // Mettre à jour le formulaire avec l'ID de l'utilisateur comme manager
+      this.projectForm.patchValue({
+        managerId: currentUser.id,
+        moaId: 1,      // Fixé à 1 comme demandé
+        promoterId: 1  // Fixé à 1 comme demandé
+      });
+    }
+  }
+
+  /**
+   * Initialise le formulaire avec les validations
+   */
+  private initializeForm(): void {
     this.projectForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
-      number: ['', [Validators.required]],
-      address: ['', [Validators.required, Validators.minLength(5)]],
-      price: [null, [Validators.required, Validators.min(0)]],
-      numberOfRooms: [null, [Validators.required, Validators.min(1)]],
-      area: [null, [Validators.required, Validators.min(1)]],
-      numberOfLots: [null, [Validators.required, Validators.min(1)]],
-      promoterId: [currentUserId],
-      propertyTypeId: [null, Validators.required],
+      number: ['', Validators.required],
+      propertyTypeId: ['', Validators.required],
+      area: ['', [Validators.required, Validators.min(1)]],
+      price: ['', [Validators.required, Validators.min(0)]],
       startDate: ['', Validators.required],
       endDate: ['', Validators.required],
+      address: ['', [Validators.required, Validators.minLength(5)]],
+      numberOfLots: ['', [Validators.required, Validators.min(1)]],
+      numberOfRooms: ['', [Validators.required, Validators.min(1)]],
+      promoterId: [1], // Fixé à 1
+      moaId: [1], // Fixé à 1
+      managerId: [''], // Sera rempli avec l'ID de l'utilisateur connecté
+      constructionStatus: [''],
       latitude: [''],
       longitude: [''],
       description: ['', Validators.maxLength(1000)],
-      moaId: [null],
-      managerId: [null],
+      // Équipements
       hasHall: [false],
       hasParking: [false],
       hasElevator: [false],
@@ -82,303 +152,417 @@ moas: any;
     }, { validators: this.dateRangeValidator });
   }
 
-  private dateRangeValidator(form: FormGroup) {
-    const startDate = form.get('startDate')?.value;
-    const endDate = form.get('endDate')?.value;
-    if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
-      return { dateRange: true };
+  /**
+   * Validateur personnalisé pour vérifier que la date de fin est après la date de début
+   */
+  private dateRangeValidator(control: AbstractControl): {[key: string]: any} | null {
+    const startDate = control.get('startDate')?.value;
+    const endDate = control.get('endDate')?.value;
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      if (end <= start) {
+        return { dateRange: { message: 'La date de fin doit être postérieure à la date de début' } };
+      }
     }
     return null;
   }
 
-  private loadInitialData(): void {
+  /**
+   * Charge les données de référence
+   */
+  private async loadReferenceData(): Promise<void> {
     this.isLoadingData = true;
-    this.loadingError = '';
+    this.loadingError = null;
 
-    this.realestateService.getPropertyTypes().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (types) => {
-        this.propertyTypes = types;
-        console.log('Types de propriétés chargés:', types);
-      },
-      error: (error) => {
-        console.error('Erreur lors du chargement des types de propriétés:', error);
-        this.loadingError = 'Erreur de chargement des types de propriétés';
-        this.propertyTypes = [
-          { id: 1, typename: 'Appartement' },
-          { id: 2, typename: 'Villa' },
-          { id: 3, typename: 'Bureau' },
-          { id: 4, typename: 'Local commercial' }
-        ];
-      }
-    });
-
-    this.realestateService.getPromoters().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (promoters) => {
-        this.promoters = promoters;
-        this.isLoadingData = false;
-        console.log('Promoteurs chargés:', promoters);
-      },
-      error: (error) => {
-        console.error('Erreur lors du chargement des promoteurs:', error);
-        this.loadingError = 'Erreur de chargement des promoteurs';
-        this.promoters = [
-          { id: this.authService.currentUser()?.id || 1, name: 'Promoteur par défaut' }
-        ];
-        this.isLoadingData = false;
-      }
-    });
+    try {
+      // Simuler le chargement des données de référence
+      // Remplacez ces appels par vos vrais services
+      await Promise.all([
+        this.loadPropertyTypes(),
+        this.loadPromoters(),
+        this.loadMoas(),
+        this.loadManagers()
+      ]);
+    } catch (error) {
+      this.loadingError = 'Erreur lors du chargement des données de référence';
+      console.error('Erreur de chargement:', error);
+    } finally {
+      this.isLoadingData = false;
+    }
   }
 
-  onFileChange(event: any, type: 'plan'): void {
+  /**
+   * Charge les types de propriétés (à adapter selon votre service)
+   */
+  private async loadPropertyTypes(): Promise<void> {
+    // Exemple de données - remplacez par votre service réel
+    this.propertyTypes = [
+      { id: 1, typename: 'Appartement' },
+      { id: 2, typename: 'Villa' },
+      { id: 3, typename: 'Immeuble' },
+      { id: 4, typename: 'Terrain' }
+    ];
+  }
+
+  /**
+   * Charge les promoteurs (à adapter selon votre service)
+   */
+  private async loadPromoters(): Promise<void> {
+    // Exemple de données - remplacez par votre service réel
+    this.promoters = [
+      { id: 1, name: 'Promoteur A' },
+      { id: 2, name: 'Promoteur B' },
+      { id: 3, name: 'Promoteur C' }
+    ];
+  }
+
+  /**
+   * Charge les MOAs (à adapter selon votre service)
+   */
+  private async loadMoas(): Promise<void> {
+    // Exemple de données - remplacez par votre service réel
+    this.moas = [
+      { id: 1, name: 'MOA Alpha' },
+      { id: 2, name: 'MOA Beta' },
+      { id: 3, name: 'MOA Gamma' }
+    ];
+  }
+
+  /**
+   * Charge les managers (à adapter selon votre service)
+   */
+  private async loadManagers(): Promise<void> {
+    // Exemple de données - remplacez par votre service réel
+    this.managers = [
+      { id: 1, name: 'Manager 1' },
+      { id: 2, name: 'Manager 2' },
+      { id: 3, name: 'Manager 3' }
+    ];
+  }
+
+  /**
+   * Réessaie le chargement des données
+   */
+  retryLoadData(): void {
+    this.loadReferenceData();
+  }
+
+  /**
+   * Gère le changement de fichier
+   */
+  onFileChange(event: any, fileType: string): void {
     const file = event.target.files[0];
-    if (!file) {
-      this.planFile = undefined;
-      this.selectedFiles.plan = null;
-      return;
-    }
-
-    const validation = this.realestateService.validateFile(file, 'image');
-    if (!validation.valid) {
-      alert(validation.error);
-      event.target.value = '';
-      this.planFile = undefined;
-      this.selectedFiles.plan = null;
-      return;
-    }
-
-    this.planFile = file;
-    this.selectedFiles.plan = file.name;
-    console.log('Fichier plan sélectionné:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
-  }
-
-  onPriceInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value.replace(/\s/g, '');
-    const numericValue = parseFloat(value);
-    if (!isNaN(numericValue)) {
-      const formatted = new Intl.NumberFormat('fr-FR').format(numericValue);
-      input.value = formatted;
-      this.projectForm.get('price')?.setValue(numericValue);
-    }
-  }
-
-  onSubmit(): void {
-    console.log('=== DÉBUT DE L\'ENVOI ===');
-    if (this.projectForm.invalid) {
-      console.log('Formulaire invalide:', this.projectForm.errors);
-      this.markFormGroupTouched();
-      this.showValidationErrors();
-      return;
-    }
-
-    if (!this.planFile) {
-      console.log('Aucun fichier plan sélectionné');
-      alert('Veuillez sélectionner un plan (image)');
-      return;
-    }
-
-    this.isSubmitting = true;
-    const formData = this.projectForm.value;
-    const currentUser = this.authService.currentUser();
-    const currentUserId = currentUser?.id;
-
-    if (!currentUserId) {
-      console.error('Utilisateur non identifié');
-      alert('Erreur: utilisateur non identifié');
-      this.isSubmitting = false;
-      return;
-    }
-
-    const projectData = {
-      name: formData.name,
-      number: formData.number,
-      address: formData.address,
-      price: Number(formData.price),
-      numberOfRooms: Number(formData.numberOfRooms),
-      area: Number(formData.area),
-      latitude: formData.latitude ? Number(formData.latitude) : undefined,
-      longitude: formData.longitude ? Number(formData.longitude) : undefined,
-      description: formData.description || '',
-      numberOfLots: Number(formData.numberOfLots),
-      promoterId: Number(formData.promoterId || currentUserId),
-      moaId: formData.moaId ? Number(formData.moaId) : undefined,
-      managerId: formData.managerId ? Number(formData.managerId) : undefined,
-      propertyTypeId: Number(formData.propertyTypeId),
-      startDate: this.formatDateForAPI(formData.startDate),
-      endDate: this.formatDateForAPI(formData.endDate),
-      hasHall: Boolean(formData.hasHall),
-      hasParking: Boolean(formData.hasParking),
-      hasElevator: Boolean(formData.hasElevator),
-      hasSwimmingPool: Boolean(formData.hasSwimmingPool),
-      hasGym: Boolean(formData.hasGym),
-      hasPlayground: Boolean(formData.hasPlayground),
-      hasSecurityService: Boolean(formData.hasSecurityService),
-      hasGarden: Boolean(formData.hasGarden),
-      hasSharedTerrace: Boolean(formData.hasSharedTerrace),
-      hasBicycleStorage: Boolean(formData.hasBicycleStorage),
-      hasLaundryRoom: Boolean(formData.hasLaundryRoom),
-      hasStorageRooms: Boolean(formData.hasStorageRooms),
-      hasWasteDisposalArea: Boolean(formData.hasWasteDisposalArea),
-      mezzanine: Boolean(formData.mezzanine)
-    };
-
-    console.log('Données du projet à envoyer:', projectData);
-    console.log('Fichier plan:', {
-      name: this.planFile.name,
-      size: this.planFile.size,
-      type: this.planFile.type
-    });
-
-    this.realestateService.createProject(projectData, this.planFile, false) // Set to false for raw file upload
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          console.log('Projet créé avec succès:', response);
-          alert('Projet créé avec succès !');
-          this.router.navigate(['/dashboard']);
-          this.resetForm();
-        },
-        error: (error) => {
-          console.error('Erreur lors de la création du projet:', error);
-          alert(error.message || 'Erreur lors de la création du projet');
-          this.isSubmitting = false;
-        },
-        complete: () => {
-          this.isSubmitting = false;
+    if (file) {
+      if (fileType === 'plan') {
+        // Vérification du type de fichier
+        if (!file.type.startsWith('image/')) {
+          alert('Veuillez sélectionner un fichier image valide');
+          return;
         }
-      });
+        
+        // Vérification de la taille (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+          alert('Le fichier est trop volumineux. Taille maximale: 10MB');
+          return;
+        }
+        
+        this.planFile = file;
+      }
+    }
   }
 
-  private formatDateForAPI(dateString: string): string {
+  /**
+   * Supprime le fichier plan
+   */
+  removePlanFile(): void {
+    this.planFile = null;
+    // Réinitialiser l'input file
+    const fileInput = document.getElementById('planFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  /**
+   * Vérifie si un fichier plan est sélectionné
+   */
+  isPlanFileSelected(): boolean {
+    return this.planFile !== null;
+  }
+
+  /**
+   * Retourne le nom du fichier plan
+   */
+  getPlanFileName(): string {
+    return this.planFile?.name || '';
+  }
+
+  /**
+   * Formate le prix avec des espaces
+   */
+  onPriceInput(event: any): void {
+    let value = event.target.value;
+    // Supprimer tous les caractères non numériques sauf les points
+    value = value.replace(/[^\d]/g, '');
+    
+    // Ajouter des espaces pour la lisibilité
+    if (value) {
+      value = parseInt(value).toLocaleString('fr-FR');
+    }
+    
+    // Mettre à jour le contrôle du formulaire avec la valeur numérique
+    const numericValue = value ? parseInt(value.replace(/\s/g, '')) : '';
+    this.projectForm.patchValue({ price: numericValue });
+    
+    // Mettre à jour l'affichage
+    event.target.value = value;
+  }
+
+  /**
+   * Convertit la date au format requis par l'API (MM-DD-YYYY)
+   */
+  private convertDateToApiFormat(dateString: string): string {
     if (!dateString) return '';
+    
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
     const year = date.getFullYear();
+    
     return `${month}-${day}-${year}`;
   }
 
-  private showValidationErrors(): void {
-    const errors: string[] = [];
-    if (this.nameControl?.hasError('required')) errors.push('Le nom du projet est requis');
-    if (this.numberControl?.hasError('required')) errors.push('Le numéro du projet est requis');
-    if (this.addressControl?.hasError('required')) errors.push('L\'adresse est requise');
-    if (this.priceControl?.hasError('required')) errors.push('Le prix est requis');
-    if (this.numberOfRoomsControl?.hasError('required')) errors.push('Le nombre de pièces est requis');
-    if (this.areaControl?.hasError('required')) errors.push('La surface est requise');
-    if (this.numberOfLotsControl?.hasError('required')) errors.push('Le nombre de lots est requis');
-    // if (this.propertyTypeControl?.hasError('required')) errors.push('Le type de propriété est requis');
-    if (this.promoterControl?.hasError('required')) errors.push('Le promoteur est requis');
-    if (this.startDateControl?.hasError('required')) errors.push('La date de début est requise');
-    if (this.endDateControl?.hasError('required')) errors.push('La date de fin est requise');
-    if (this.projectForm.hasError('dateRange')) errors.push('La date de fin doit être après la date de début');
+ /**
+ * Soumet le formulaire
+ */
+ async onSubmit(): Promise<void> {
+  if (this.projectForm.invalid || !this.planFile) {
+    this.projectForm.markAllAsTouched();
+    return;
+  }
 
-    if (errors.length > 0) {
-      alert('Veuillez corriger les erreurs suivantes:\n' + errors.join('\n'));
+  // Vérifier que l'utilisateur est authentifié
+  if (!this.authService.isAuthenticated()) {
+    alert('Vous devez être connecté pour créer un projet');
+    this.router.navigate(['/login']);
+    return;
+  }
+
+  this.isSubmitting = true;
+
+  try {
+    // Préparer les données du projet
+    const formValues = this.projectForm.value;
+    const currentUser = this.authService.currentUser();
+
+    
+    if (!currentUser || !currentUser.id) {
+      alert('Erreur: Impossible de récupérer les informations de l\'utilisateur connecté');
+      this.isSubmitting = false;
+      return;
     }
-  }
+    
+    // Convertir propertyTypeId en nombre
+    const propertyTypeId = Number(formValues.propertyTypeId);
+    
+    const projectData: ProjectData = {
+      name: formValues.name,
+      number: formValues.number,
+      address: formValues.address,
+      price: typeof formValues.price === 'string' ? 
+             parseInt(formValues.price.replace(/\s/g, '')) : formValues.price,
+      numberOfRooms: formValues.numberOfRooms,
+      area: formValues.area,
+      latitude: formValues.latitude || undefined,
+      longitude: formValues.longitude || undefined,
+      description: formValues.description || undefined,
+      numberOfLots: formValues.numberOfLots,
+      promoterId: 1, // Fixé à 1
+      moaId: 1, // Fixé à 1
+      managerId: currentUser.id, // ID de l'utilisateur connecté
+      propertyTypeId: propertyTypeId, // Converti en nombre
+      plan: this.planFile,
+      // Dates converties au format requis
+      startDate: this.convertDateToApiFormat(formValues.startDate),
+      endDate: this.convertDateToApiFormat(formValues.endDate),
+      // Équipements
+      hasHall: formValues.hasHall || false,
+      hasParking: formValues.hasParking || false,
+      hasElevator: formValues.hasElevator || false,
+      hasSwimmingPool: formValues.hasSwimmingPool || false,
+      hasGym: formValues.hasGym || false,
+      hasPlayground: formValues.hasPlayground || false,
+      hasSecurityService: formValues.hasSecurityService || false,
+      hasGarden: formValues.hasGarden || false,
+      hasSharedTerrace: formValues.hasSharedTerrace || false,
+      hasBicycleStorage: formValues.hasBicycleStorage || false,
+      hasLaundryRoom: formValues.hasLaundryRoom || false,
+      hasStorageRooms: formValues.hasStorageRooms || false,
+      hasWasteDisposalArea: formValues.hasWasteDisposalArea || false,
+      mezzanine: formValues.mezzanine || false
+    };
 
-  private markFormGroupTouched(): void {
-    Object.keys(this.projectForm.controls).forEach(key => {
-      this.projectForm.get(key)?.markAsTouched();
-    });
-  }
+    // Appeler le service pour créer le projet
+    const response = await this.projectService.createProject(projectData).toPromise();
+    
+    if (response?.success) {
+      alert('Projet créé avec succès !');
+      this.router.navigate(['/projects']); // Rediriger vers la liste des projets
+    } else {
+      alert('Erreur lors de la création du projet: ' + (response?.message || 'Erreur inconnue'));
+    }
 
-  private resetForm(): void {
-    const currentUserId = this.authService.currentUser()?.id || null;
-    this.projectForm.reset({
-      promoterId: currentUserId,
-      moaId: null,
-      managerId: null,
-      hasHall: false,
-      hasParking: false,
-      hasElevator: false,
-      hasSwimmingPool: false,
-      hasGym: false,
-      hasPlayground: false,
-      hasSecurityService: false,
-      hasGarden: false,
-      hasSharedTerrace: false,
-      hasBicycleStorage: false,
-      hasLaundryRoom: false,
-      hasStorageRooms: false,
-      hasWasteDisposalArea: false,
-      mezzanine: false
-    });
-    this.planFile = undefined;
-    this.selectedFiles.plan = null;
-    const fileInputs = document.querySelectorAll('input[type="file"]');
-    fileInputs.forEach((input: any) => input.value = '');
+  } catch (error: any) {
+    console.error('Erreur complète:', error);
+    if (error.status === 403) {
+      alert('Accès refusé. Vérifiez vos permissions ou reconnectez-vous.');
+      this.authService.logout();
+      this.router.navigate(['/login']);
+    } else {
+      alert('Erreur lors de la création du projet: ' + (error.message || error.error || 'Erreur inconnue'));
+    }
+  } finally {
+    this.isSubmitting = false;
   }
+}
 
+  /**
+   * Annule et retourne à la liste
+   */
   onCancel(): void {
-    if (confirm('Êtes-vous sûr de vouloir annuler ? Toutes les données saisies seront perdues.')) {
-      this.resetForm();
-      this.router.navigate(['/dashboard']);
+    if (confirm('Êtes-vous sûr de vouloir annuler? Toutes les données saisies seront perdues.')) {
+      this.router.navigate(['/projects']);
     }
   }
 
-  retryLoadData(): void {
-    this.loadInitialData();
+  // Méthodes utilitaires pour les erreurs et la validation
+
+  /**
+   * Vérifie si un champ a une erreur spécifique
+   */
+  hasError(fieldName: string, errorType: string): boolean {
+    const field = this.projectForm.get(fieldName);
+    return !!(field?.hasError(errorType) && field?.touched);
   }
 
-  isPlanFileSelected(): boolean {
-    return !!this.planFile && !!this.selectedFiles.plan;
+  /**
+   * Retourne le message d'erreur pour un champ
+   */
+  getErrorMessage(fieldName: string): string {
+    const field = this.projectForm.get(fieldName);
+    if (!field?.errors || !field?.touched) return '';
+
+    const errors: {[key: string]: string} = {
+      required: 'Ce champ est requis',
+      minlength: `Minimum ${field.errors?.['minlength']?.requiredLength} caractères`,
+      maxlength: `Maximum ${field.errors?.['maxlength']?.requiredLength} caractères`,
+      min: `La valeur doit être supérieure ou égale à ${field.errors?.['min']?.min}`,
+      email: 'Format d\'email invalide'
+    };
+
+    // Gestion spéciale pour le validateur de plage de dates
+    if (fieldName === 'endDate' && this.projectForm.hasError('dateRange')) {
+      return 'La date de fin doit être postérieure à la date de début';
+    }
+
+    // Messages spécifiques par champ
+    const fieldMessages: {[key: string]: {[key: string]: string}} = {
+      name: {
+        required: 'Le nom du projet est requis',
+        minlength: 'Le nom doit contenir au moins 3 caractères'
+      },
+      number: {
+        required: 'Le numéro du projet est requis'
+      },
+      propertyTypeId: {
+        required: 'Veuillez sélectionner un type de projet'
+      },
+      area: {
+        required: 'La surface est requise',
+        min: 'La surface doit être positive'
+      },
+      price: {
+        required: 'Le prix est requis',
+        min: 'Le prix ne peut pas être négatif'
+      },
+      startDate: {
+        required: 'La date de début est requise'
+      },
+      endDate: {
+        required: 'La date de fin est requise'
+      },
+      address: {
+        required: 'L\'adresse est requise',
+        minlength: 'L\'adresse doit contenir au moins 5 caractères'
+      },
+      numberOfLots: {
+        required: 'Le nombre de lots est requis',
+        min: 'Le nombre de lots doit être positif'
+      },
+      numberOfRooms: {
+        required: 'Le nombre de chambres est requis',
+        min: 'Le nombre de chambres doit être positif'
+      },
+      promoterId: {
+        required: 'Veuillez sélectionner un promoteur'
+      },
+      description: {
+        maxlength: 'La description ne peut pas dépasser 1000 caractères'
+      }
+    };
+
+    // Retourner le message spécifique au champ et à l'erreur
+    const errorType = Object.keys(field.errors)[0];
+    return fieldMessages[fieldName]?.[errorType] || errors[errorType] || 'Erreur de validation';
   }
 
-  getPlanFileName(): string {
-    return this.selectedFiles.plan || 'Aucun fichier sélectionné';
-  }
-
-  removePlanFile(): void {
-    this.planFile = undefined;
-    this.selectedFiles.plan = null;
-    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  }
-
+  // Getters pour les contrôles du formulaire (pour faciliter l'accès dans le template)
   get nameControl() { return this.projectForm.get('name'); }
-  get numberControl() { return this.projectForm.get('number'); }
-  get addressControl() { return this.projectForm.get('address'); }
-  get priceControl() { return this.projectForm.get('price'); }
-  get numberOfRoomsControl() { return this.projectForm.get('numberOfRooms'); }
   get areaControl() { return this.projectForm.get('area'); }
+  get priceControl() { return this.projectForm.get('price'); }
+  get addressControl() { return this.projectForm.get('address'); }
   get numberOfLotsControl() { return this.projectForm.get('numberOfLots'); }
-  get propertyTypeControl() { return this.projectForm.get('propertyTypeId'); }
-  get promoterControl() { return this.projectForm.get('promoterId'); }
-  get startDateControl() { return this.projectForm.get('startDate'); }
-  get endDateControl() { return this.projectForm.get('endDate'); }
-  get latitudeControl() { return this.projectForm.get('latitude'); }
-  get longitudeControl() { return this.projectForm.get('longitude'); }
+  get numberOfRoomsControl() { return this.projectForm.get('numberOfRooms'); }
   get descriptionControl() { return this.projectForm.get('description'); }
-  get moaControl() { return this.projectForm.get('moaId'); }
-  get managerControl() { return this.projectForm.get('managerId'); }
 
-  hasError(controlName: string, errorType: string): boolean {
-    const control = this.projectForm.get(controlName);
-    return !!(control?.hasError(errorType) && control?.touched);
+  // Getters pour l'accès aux informations utilisateur (similaire au sidebar)
+  get currentUser() {
+    return this.authService.currentUser();
   }
 
-  getErrorMessage(controlName: string): string {
-    const control = this.projectForm.get(controlName);
-    if (control?.hasError('required')) return 'Ce champ est requis';
-    if (control?.hasError('minlength')) return `Minimum ${control.errors?.['minlength'].requiredLength} caractères`;
-    if (control?.hasError('min')) return `La valeur doit être supérieure à ${control.errors?.['min'].min}`;
-    if (control?.hasError('maxlength')) return `Maximum ${control.errors?.['maxlength'].requiredLength} caractères`;
-    if (this.projectForm.hasError('dateRange')) return 'La date de fin doit être après la date de début';
-    return '';
+  get userFullName() {
+    return this.authService.userFullName();
   }
 
-  trackByTypeId(index: number, type: PropertyType): number {
-    return type.id;
+  get isUserAuthenticated() {
+    return this.authService.isAuthenticated();
   }
 
-  trackByPromoterId(index: number, promoter: Promoter): number {
-    return promoter.id;
+  /**
+   * Obtient le nom d'affichage formaté de l'utilisateur connecté
+   */
+  getUserDisplayName(): string {
+    return this.authService.getUserDisplayName();
+  }
+
+  // Méthodes de tracking pour les listes (optimisation Angular)
+  trackByTypeId(index: number, item: PropertyType): number {
+    return item.id;
+  }
+
+  trackByPromoterId(index: number, item: Promoter): number {
+    return item.id;
+  }
+
+  trackByMoaId(index: number, item: Moa): number {
+    return item.id;
+  }
+
+  trackByManagerId(index: number, item: Manager): number {
+    return item.id;
   }
 }

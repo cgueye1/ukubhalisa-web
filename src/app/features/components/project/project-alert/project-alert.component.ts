@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { ProjectBudgetService, Signalement, SignalementResponse, CreateSignalementRequest } from '../../../../../services/project-details.service';
 
 @Component({
@@ -15,11 +16,11 @@ export class ProjectAlertComponent implements OnInit {
   filteredSignalements: Signalement[] = [];
   searchTerm: string = '';
   currentPage: number = 0;
-  pageSize: number = 10;
+  pageSize: number = 5;
   totalElements: number = 0;
   totalPages: number = 0;
   loading: boolean = false;
-  propertyId: number = 17;
+  propertyId!: number;
 
   // Ajout de confirmation suppression
   showDeleteConfirmModal: boolean = false;
@@ -30,17 +31,32 @@ export class ProjectAlertComponent implements OnInit {
   newSignalement: CreateSignalementRequest = {
     title: '',
     description: '',
-    propertyId: 17,
+    propertyId: 0,
     pictures: []
   };
 
   Math: any = Math;
 
-  constructor(private projectBudgetService: ProjectBudgetService) {}
+  constructor(
+    private projectBudgetService: ProjectBudgetService,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(): void {
-    this.loadSignalements();
+    this.getPropertyIdFromRoute();
   }
+
+    private getPropertyIdFromRoute(): void {
+      const idFromUrl = this.route.snapshot.paramMap.get('id');
+      if (idFromUrl) {
+        this.propertyId = +idFromUrl;
+        this.newSignalement.propertyId = this.propertyId;
+        this.loadSignalements();
+      } else {
+        console.error("ID de propriété non trouvé dans l'URL.");
+        // Gérer l'erreur ou rediriger
+      }
+    }
 
   loadSignalements(): void {
     this.loading = true;
@@ -72,9 +88,29 @@ export class ProjectAlertComponent implements OnInit {
     } else {
       this.filteredSignalements = this.signalements.filter(signalement =>
         signalement.title.toLowerCase().includes(this.searchTerm.toLowerCase()) ||
-        signalement.description.toLowerCase().includes(this.searchTerm.toLowerCase())
+        (signalement.description && signalement.description.toLowerCase().includes(this.searchTerm.toLowerCase()))
       );
     }
+  }
+
+  // Gestion des fichiers
+  onFileSelected(event: any): void {
+    const files: FileList = event.target.files;
+    if (files && files.length > 0) {
+      Array.from(files).forEach(file => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            this.newSignalement.pictures.push(e.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+  }
+
+  removeImage(index: number): void {
+    this.newSignalement.pictures.splice(index, 1);
   }
 
   openAddModal(): void {
@@ -93,21 +129,114 @@ export class ProjectAlertComponent implements OnInit {
 
   addSignalement(): void {
     if (!this.newSignalement.title.trim() || !this.newSignalement.description.trim()) {
-      return; // pas d'alerte, tu peux gérer une erreur visuelle si tu veux
+      return;
     }
 
     this.loading = true;
-    this.projectBudgetService.saveSignalement(this.newSignalement)
+
+    const formData = new FormData();
+    formData.append('title', this.newSignalement.title.trim());
+    formData.append('description', this.newSignalement.description.trim());
+    formData.append('propertyId', this.newSignalement.propertyId.toString());
+
+    if (this.newSignalement.pictures.length > 0) {
+      this.newSignalement.pictures.forEach((picture: string, index: number) => {
+        if (picture.startsWith('data:image/')) {
+          try {
+            const base64Data = picture.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray]);
+            
+            const mimeType = picture.match(/data:(.*);base64/)?.[1] || 'image/png';
+            const fileExtension = mimeType.split('/')[1] || 'png';
+            
+            const file = new File([blob], `signalement_${Date.now()}_${index}.${fileExtension}`, { 
+              type: mimeType 
+            });
+            
+            formData.append('pictures', file);
+          } catch (error) {
+            console.error('Erreur conversion image:', error);
+            formData.append('pictures', picture);
+          }
+        } else {
+          formData.append('pictures', picture);
+        }
+      });
+    } else {
+      formData.append('pictures', '');
+    }
+
+    this.projectBudgetService.saveSignalementWithFormData(formData)
       .subscribe({
         next: () => {
           this.loadSignalements();
           this.closeAddModal();
+          this.loading = false;
         },
         error: (error) => {
-          console.error('Erreur lors de l\'ajout du signalement:', error);
+          console.error('Erreur:', error);
           this.loading = false;
+          this.showError('Erreur lors de l\'ajout du signalement');
         }
       });
+  }
+
+  showError(message: string): void {
+    // Implémentez votre système de notification
+    alert(message);
+  }
+
+  // Méthodes de pagination améliorées
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages && page !== this.currentPage) {
+      this.currentPage = page;
+      this.loadSignalements();
+    }
+  }
+
+  onPageSizeChange(): void {
+    this.currentPage = 0;
+    this.loadSignalements();
+  }
+
+  getPageNumbers(): number[] {
+    const pages: number[] = [];
+    const maxPagesToShow = 5;
+    
+    let startPage = Math.max(0, this.currentPage - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(this.totalPages - 1, startPage + maxPagesToShow - 1);
+    
+    if (endPage - startPage + 1 < maxPagesToShow) {
+      startPage = Math.max(0, endPage - maxPagesToShow + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.loadSignalements();
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this.loadSignalements();
+    }
   }
 
   // Méthodes de confirmation suppression
@@ -142,21 +271,5 @@ export class ProjectAlertComponent implements OnInit {
 
   editSignalement(signalement: Signalement): void {
     console.log('Édition du signalement:', signalement);
-    // À implémenter plus tard
-  }
-
-  // Pagination
-  previousPage(): void {
-    if (this.currentPage > 0) {
-      this.currentPage--;
-      this.loadSignalements();
-    }
-  }
-
-  nextPage(): void {
-    if (this.currentPage < this.totalPages - 1) {
-      this.currentPage++;
-      this.loadSignalements();
-    }
   }
 }

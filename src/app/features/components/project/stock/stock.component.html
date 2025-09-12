@@ -52,35 +52,9 @@
         <!-- Search and Filters -->
         <div class="flex gap-4 mb-6">
           <div class="relative flex-1">
-            <input 
-              type="text" 
-              placeholder="Rechercher un matériau..."
-              [(ngModel)]="searchTerm"
-              (input)="filterMaterials()"
-              class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            <span class="absolute left-3 top-3 text-gray-400">🔍</span>
+     
           </div>
-          <select 
-            [(ngModel)]="selectedCategory"
-            (change)="filterMaterials()"
-            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            <option value="">Catégorie</option>
-            <option value="beton">Béton</option>
-            <option value="acier">Acier</option>
-            <option value="maconnerie">Maçonnerie</option>
-            <option value="finition">Finition</option>
-            <option value="plomberie">Plomberie</option>
-            <option value="revetement">Revêtement</option>
-          </select>
-          <select 
-            [(ngModel)]="selectedStockStatus"
-            (change)="filterMaterials()"
-            class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            <option value="">État du stock</option>
-            <option value="CRITICAL">Critique</option>
-            <option value="LOW">Avertissement</option>
-            <option value="NORMAL">Normal</option>
-          </select>
+       
         </div>
 
         <!-- Loading State -->
@@ -88,181 +62,394 @@
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
         </div>
 
-        <!-- Materials Table -->
-        <div *ngIf="!loading" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Matériau</th>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Stock</th>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Unité</th>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Seuil</th>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">État</th>
-                  <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let material of paginatedMaterials; let i = index" class="border-b border-gray-100 hover:bg-gray-50">
-                  <td class="py-4 px-6 font-medium text-gray-900">{{ getMaterialName(material) }}</td>
-                  <td class="py-4 px-6 font-semibold text-gray-900">{{ getMaterialStock(material) }}</td>
-                  <td class="py-4 px-6 text-gray-600">{{ getMaterialUnit(material) }}</td>
-                  <td class="py-4 px-6 text-gray-600">{{ getMaterialThreshold(material) }}</td>
-                  <td class="py-4 px-6">
-                    <span [class]="getStatusClass(getMaterialStatus(material))" class="px-3 py-1 rounded-full text-sm font-medium">
-                      {{ getStatusText(getMaterialStatus(material)) }}
-                    </span>
-                  </td>
-                  <td class="py-4 px-6 relative">
-                    <button 
-                      (click)="toggleDropdown(i, $event)"
-                      class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100">
-                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
-                      </svg>
-                    </button>
-                    
-                    <!-- Dropdown Menu -->
-                    <div *ngIf="openDropdownIndex === i" 
-                         class="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                      <div class="py-2">
-                        <button 
-                          (click)="onAction('modifier', material, $event)"
-                          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                          <span class="text-gray-400">✏️</span>
-                          Modifier
-                        </button>
-                        <button 
-                          (click)="openMovementModal(material)"
-                          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                          <span class="text-gray-400">📦</span>
-                          Gérer stock
-                        </button>
-                        <button 
-                          (click)="onAction('commander', material, $event)"
-                          class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                          <span class="text-gray-400">🛒</span>
-                          Commander
-                        </button>
-                        <button 
-                          (click)="onAction('historique', material, $event)"
-                          class="w-full text-2-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                          <span class="text-gray-400">📋</span>
-                          Historique
-                        </button>
-                        <hr class="my-1 border-gray-200">
-                        <button 
-                          (click)="onAction('supprimer', material, $event)"
-                          class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3">
-                          <span class="text-red-400">🗑️</span>
-                          Supprimer
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-                
-                <!-- Empty state -->
-                <tr *ngIf="paginatedMaterials.length === 0">
-                  <td colspan="6" class="py-12 text-center text-gray-500">
-                    <div class="flex flex-col items-center">
-                      <span class="text-6xl mb-4">📦</span>
-                      <span class="text-lg font-medium">Aucun matériau trouvé</span>
-                      <span class="text-sm">Essayez de modifier vos filtres</span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Pagination -->
-          <div *ngIf="totalPages > 1" class="flex justify-between items-center p-4 border-t border-gray-200">
-            <div class="text-sm text-gray-600">
-              Page {{ displayCurrentPage }} sur {{ totalPages }} | Total: {{ totalElements }} éléments
-            </div>
-            <div class="flex gap-2">
-              <button 
-                (click)="previousPage()"
-                [disabled]="currentPage === 0"
-                class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">
-                ← Précédent
-              </button>
-              <button 
-                (click)="nextPage()"
-                [disabled]="currentPage >= totalPages - 1"
-                class="px-3 py-1 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">
-                Suivant →
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+       <!-- Filtres pour les inventaires -->
+<div *ngIf="activeTab === 'inventaires'">
+  <div class="flex gap-4 mb-6">
+    <div class="relative flex-1">
+      <input 
+        type="text" 
+        placeholder="Rechercher par matériau, unité..."
+        [(ngModel)]="searchMaterialTerm"
+        (input)="onMaterialSearchChange()"
+        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+      <span class="absolute left-3 top-3 text-gray-400">🔍</span>
+    </div>
+    <select 
+      [(ngModel)]="statusMaterialFilter"
+      (change)="onMaterialStatusFilterChange()"
+      class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+      <option value="">Tous les matériaux</option>
+      <option value="stock normal">Stock normal</option>
+      <option value="stock faible">Stock faible</option>
+      <option value="rupture de stock">Rupture de stock</option>
+    </select>
+    <button 
+      *ngIf="searchMaterialTerm || statusMaterialFilter"
+      (click)="resetMaterialFilters()"
+      class="px-4 py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+      Réinitialiser
+    </button>
+  </div>
 
-      <!-- Other tabs content -->
-      <div *ngIf="activeTab === 'livraisons'">
-        <!-- Filters for deliveries -->
-        <div class="flex gap-4 mb-6">
-          <div class="relative flex-1">
-            <input 
-              type="text" 
-              placeholder="Rechercher par livraison, fournisseur"
-              class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            <span class="absolute left-3 top-3 text-gray-400">🔍</span>
-          </div>
-          <select class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
-            <option value="">Toutes les livraisons</option>
-            <option value="complete">Complète</option>
-            <option value="partielle">Partielle</option>
-            <option value="annulee">Annulée</option>
-          </select>
-        </div>
+  <!-- Loading state -->
+  <div *ngIf="loading" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div class="flex items-center justify-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <span class="ml-2 text-gray-600">Chargement des matériaux...</span>
+    </div>
+  </div>
 
-        <!-- Deliveries Table -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <table class="w-full">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">N° Livraison</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Date</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Commande</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Fournisseur</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Statut</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Preuve</th>
-                <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let delivery of deliveries; let i = index" class="border-b border-gray-100 hover:bg-gray-50">
-                <td class="py-4 px-6 font-medium text-gray-900">{{ delivery.number }}</td>
-                <td class="py-4 px-6 text-gray-600">{{ delivery.date }}</td>
-                <td class="py-4 px-6 text-gray-600">{{ delivery.command }}</td>
-                <td class="py-4 px-6 text-gray-600">{{ delivery.supplier }}</td>
-                <td class="py-4 px-6">
-                  <span [class]="getDeliveryStatusClass(delivery.status)" class="px-3 py-1 rounded-full text-sm font-medium">
-                    {{ delivery.status }}
-                  </span>
-                </td>
-                <td class="py-4 px-6">
-                  <span *ngIf="delivery.proof !== 'Aucune'" class="text-gray-600">
-                    📎 {{ delivery.proof }}
-                  </span>
-                  <span *ngIf="delivery.proof === 'Aucune'" class="text-gray-400">
-                    Aucune
-                  </span>
-                </td>
-                <td class="py-4 px-6">
-                  <button class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
-                    </svg>
+  <!-- No materials state -->
+  <div *ngIf="!loading && paginatedMaterials.length === 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div class="text-center">
+      <div class="text-gray-400 text-6xl mb-4">📦</div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">
+        {{ filteredMaterials.length === 0 && materials.length > 0 ? 'Aucun matériau trouvé' : 'Aucun matériau' }}
+      </h3>
+      <p class="text-gray-600">
+        {{ filteredMaterials.length === 0 && materials.length > 0 ? 'Aucun matériau ne correspond à vos critères de recherche.' : 'Il n\'y a pas encore de matériaux dans cette propriété.' }}
+      </p>
+      <button 
+        *ngIf="filteredMaterials.length === 0 && materials.length > 0"
+        (click)="resetMaterialFilters()"
+        class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+        Réinitialiser les filtres
+      </button>
+    </div>
+  </div>
+
+  <!-- Materials Table -->
+  <div *ngIf="!loading && paginatedMaterials.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <!-- Results summary -->
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+      <p class="text-sm text-gray-600">
+        Affichage de {{ (materialCurrentPage * materialPageSize) + 1 }} à 
+        {{ Math.min((materialCurrentPage + 1) * materialPageSize, totalMaterialElements) }} 
+        sur {{ totalMaterialElements }} matériau{{ totalMaterialElements > 1 ? 'x' : '' }}
+        <span *ngIf="filteredMaterials.length !== materials.length" class="text-orange-600">
+          ({{ filteredMaterials.length }} sur {{ materials.length }} au total)
+        </span>
+      </p>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Matériau</th>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Stock</th>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Unité</th>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Seuil</th>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">État</th>
+            <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let material of paginatedMaterials; let i = index" class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <td class="py-4 px-6 font-medium text-gray-900">{{ getMaterialName(material) }}</td>
+            <td class="py-4 px-6 font-semibold text-gray-900">{{ getMaterialStock(material) }}</td>
+            <td class="py-4 px-6 text-gray-600">{{ getMaterialUnit(material) }}</td>
+            <td class="py-4 px-6 text-gray-600">{{ getMaterialThreshold(material) }}</td>
+            <td class="py-4 px-6">
+              <span [class]="getStatusClass(getMaterialStatus(material))" class="px-3 py-1 rounded-full text-sm font-medium">
+                {{ getStatusText(getMaterialStatus(material)) }}
+              </span>
+            </td>
+            <td class="py-4 px-6 relative">
+              <button 
+                (click)="toggleDropdown(i, $event)"
+                class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                </svg>
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div *ngIf="openDropdownIndex === i" 
+                   class="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <div class="py-2">
+                  <button 
+                    (click)="onAction('modifier', material, $event)"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                    <span class="text-gray-400">✏️</span>
+                    Modifier
                   </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <button 
+                    (click)="openMovementModal(material)"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                    <span class="text-gray-400">📦</span>
+                    Gérer stock
+                  </button>
+                  <button 
+                    (click)="onAction('commander', material, $event)"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                    <span class="text-gray-400">🛒</span>
+                    Commander
+                  </button>
+                  <button 
+                    (click)="onAction('historique', material, $event)"
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                    <span class="text-gray-400">📋</span>
+                    Historique
+                  </button>
+                  <hr class="my-1 border-gray-200">
+                  <button 
+                    (click)="onAction('supprimer', material, $event)"
+                    class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors">
+                    <span class="text-red-400">🗑️</span>
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div *ngIf="totalMaterialPages > 1" class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div class="flex items-center justify-between">
+        <div class="text-sm text-gray-600">
+          Page {{ materialCurrentPage + 1 }} sur {{ totalMaterialPages }}
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <!-- Previous button -->
+          <button 
+            [disabled]="materialCurrentPage === 0"
+            (click)="previousMaterialPage()"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Précédent
+          </button>
+          
+          <!-- Page numbers -->
+          <button 
+            *ngFor="let page of getMaterialPageNumbers()"
+            [class]="page === materialCurrentPage ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+            (click)="goToMaterialPage(page)"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md transition-colors">
+            {{ page + 1 }}
+          </button>
+          
+          <!-- Next button -->
+          <button 
+            [disabled]="materialCurrentPage >= totalMaterialPages - 1"
+            (click)="nextMaterialPage()"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Suivant
+          </button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+      </div>
+
+<!-- Other tabs content -->
+<div *ngIf="activeTab === 'livraisons'">
+  <!-- Filters for deliveries -->
+  <div class="flex gap-4 mb-6">
+    <div class="relative flex-1">
+      <input 
+        type="text" 
+        placeholder="Rechercher par livraison, fournisseur, commande"
+        [(ngModel)]="searchDeliveryTerm"
+        (input)="onDeliverySearchChange()"
+        class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+      <span class="absolute left-3 top-3 text-gray-400">🔍</span>
+    </div>
+    <select 
+    [(ngModel)]="statusDeliveryFilter"
+    (change)="onDeliveryStatusFilterChange()"
+    class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+    <option value="">Toutes les livraisons</option>
+    <option value="livré">Livré</option>
+    <option value="en cours">En cours</option>
+    <option value="annulé">Annulé</option>
+    <option value="en attente">En attente</option>
+  </select>
+    <button 
+      *ngIf="searchDeliveryTerm || statusDeliveryFilter"
+      (click)="resetDeliveryFilters()"
+      class="px-4 py-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+      Réinitialiser
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div *ngIf="loading" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div class="flex items-center justify-center">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <span class="ml-2 text-gray-600">Chargement des livraisons...</span>
+    </div>
+  </div>
+
+  <!-- No deliveries state -->
+  <div *ngIf="!loading && paginatedDeliveries.length === 0" class="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+    <div class="text-center">
+      <div class="text-gray-400 text-6xl mb-4">📦</div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">
+        {{ filteredDeliveries.length === 0 && deliveries.length > 0 ? 'Aucune livraison trouvée' : 'Aucune livraison' }}
+      </h3>
+      <p class="text-gray-600">
+        {{ filteredDeliveries.length === 0 && deliveries.length > 0 ? 'Aucune livraison ne correspond à vos critères de recherche.' : 'Il n\'y a pas encore de livraisons pour cette propriété.' }}
+      </p>
+      <button 
+        *ngIf="filteredDeliveries.length === 0 && deliveries.length > 0"
+        (click)="resetDeliveryFilters()"
+        class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+        Réinitialiser les filtres
+      </button>
+    </div>
+  </div>
+
+  <!-- Deliveries Table -->
+  <div *ngIf="!loading && paginatedDeliveries.length > 0" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <!-- Results summary -->
+    <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+      <p class="text-sm text-gray-600">
+        Affichage de {{ (deliveryCurrentPage * pageSize) + 1 }} à 
+        {{ Math.min((deliveryCurrentPage + 1) * pageSize, totalDeliveryElements) }} 
+        sur {{ totalDeliveryElements }} livraison{{ totalDeliveryElements > 1 ? 's' : '' }}
+        <span *ngIf="filteredDeliveries.length !== deliveries.length" class="text-orange-600">
+          ({{ filteredDeliveries.length }} sur {{ deliveries.length }} au total)
+        </span>
+      </p>
+    </div>
+
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">N° Livraison</th>
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Date</th>
+          <!-- <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Commande</th> -->
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Fournisseur</th>
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Statut</th>
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Preuve</th>
+          <th class="text-left py-4 px-6 font-medium text-gray-700 border-b border-gray-200">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let delivery of paginatedDeliveries; let i = index" 
+            class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+          <td class="py-4 px-6 font-medium text-gray-900">
+           {{ 'CMD-' + (delivery.id || 0).toString().padStart(4, '0') }}
+          </td>
+          <td class="py-4 px-6 text-gray-600">{{ formatDeliveryDate(delivery.orderDate) || 'N/A' }}</td>
+          <!-- <td class="py-4 px-6 text-gray-600">{{ delivery.command  }}</td> -->
+          <td class="py-4 px-6 text-gray-600">{{ formatSupplierName(delivery.supplier) }}</td>
+          <td class="py-4 px-6">
+            <span [class]="getDeliveryStatusClass(delivery.status)" 
+                  class="px-3 py-1 rounded-full text-sm font-medium">
+              {{ getDeliveryStatusText(delivery.status) }}
+            </span>
+          </td>
+          <td class="py-4 px-6">
+            <div *ngIf="delivery.proof && delivery.proof !== 'Aucune'; else noProof" 
+                 class="flex items-center text-gray-600 hover:text-orange-600 cursor-pointer transition-colors"
+                 (click)="downloadDeliveryProof(delivery)">
+              <span class="mr-1">{{ getDeliveryProofIcon(delivery.proof) }}</span>
+              <span class="text-sm truncate max-w-[120px]" [title]="delivery.proof">{{ delivery.proof }}</span>
+            </div>
+            <ng-template #noProof>
+              <span class="text-gray-400 text-sm">Aucune</span>
+            </ng-template>
+          </td>
+          <td class="py-4 px-6 relative">
+            <button 
+              (click)="toggleDropdown(i, $event)"
+              class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+              </svg>
+            </button>
+            
+            <!-- Dropdown menu -->
+            <div *ngIf="openDropdownIndex === i" 
+                 class="absolute right-0 top-12 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <div class="py-2">
+                <button 
+                  (click)="onDeliveryAction('voir', delivery, $event)"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                  👁️ Voir les détails
+                </button>
+                <button 
+                  *ngIf="delivery.status !== 'Annulée'"
+                  (click)="onDeliveryAction('modifier', delivery, $event)"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                  ✏️ Modifier
+                </button>
+                <button 
+                  *ngIf="delivery.proof && delivery.proof !== 'Aucune'"
+                  (click)="onDeliveryAction('telecharger', delivery, $event)"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
+                  📥 Télécharger la preuve
+                </button>
+                <hr class="my-1 border-gray-200">
+                <button 
+                  (click)="onDeliveryAction('supprimer', delivery, $event)"
+                  class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                  🗑️ Supprimer
+                </button>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div *ngIf="totalDeliveryPages > 1" class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+      <div class="flex items-center justify-between">
+        <div class="text-sm text-gray-600">
+          Page {{ deliveryCurrentPage + 1 }} sur {{ totalDeliveryPages }}
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <!-- Previous button -->
+          <button 
+            [disabled]="deliveryCurrentPage === 0"
+            (click)="previousDeliveryPage()"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Précédent
+          </button>
+          
+          <!-- Page numbers -->
+          <button 
+            *ngFor="let page of getDeliveryPageNumbers()"
+            [class]="page === deliveryCurrentPage ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+            (click)="goToDeliveryPage(page)"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md transition-colors">
+            {{ page + 1 }}
+          </button>
+          
+          <!-- Next button -->
+          <button 
+            [disabled]="deliveryCurrentPage >= totalDeliveryPages - 1"
+            (click)="nextDeliveryPage()"
+            class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            Suivant
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay to close dropdown -->
+<div 
+  *ngIf="openDropdownIndex !== null"
+  (click)="closeDropdown()"
+  class="fixed inset-0 z-5">
+</div>
+
+<!-- Overlay to close dropdown -->
+<div 
+  *ngIf="openDropdownIndex !== null"
+  (click)="closeDropdown()"
+  class="fixed inset-0 z-5">
+</div>
 
     <!-- Remplacez la div existante pour l'onglet commandes par ce code -->
 <div *ngIf="activeTab === 'commandes'">
@@ -728,7 +915,7 @@
       
       <!-- Modal Body -->
       <div class="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-        <form [formGroup]="materialForm" (ngSubmit)="onSubmit()">
+        <form [formGroup]="materialForm">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             <!-- Material Name -->

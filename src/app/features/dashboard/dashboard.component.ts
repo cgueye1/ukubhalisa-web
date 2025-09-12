@@ -101,7 +101,7 @@ export class DashboardComponent implements OnInit, AfterViewInit, OnDestroy {
 
 // Propriétés pour le modal des photos
 selectedPhoto: any = null;
-currentImageIndex: number = 0;
+currentImageIndex: number = 0;  
 
 // Méthodes pour gérer le modal des photos
 

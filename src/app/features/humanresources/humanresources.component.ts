@@ -28,11 +28,11 @@ export class HumanResourcesComponent implements OnInit {
   filteredMembers: TeamMember[] = [];
   currentPage = 1;
   totalPages = 1;
-  itemsPerPage = 10;
+  itemsPerPage = 5;
   selectAll = false;
   totalMembers = 0;
   startIndex = 1;
-  endIndex = 10;
+  endIndex = 5;
   searchQuery: string = '';
   selectedPeriod: string = '';
   selectedStatus: string = '';
@@ -58,27 +58,30 @@ export class HumanResourcesComponent implements OnInit {
   // Variables de loading
   isLoading = false;
   errorMessage = '';
-userForm: any;
-isSubmitting: any;
+  userForm: any;
+  isSubmitting: any;
 
   constructor(private utilisateurService: UtilisateurService) {}
 
   ngOnInit() {
-    this.loadTeamMembers();
+    this.loadAllTeamMembers();
   }
 
-  loadTeamMembers() {
+  /**
+   * Charge tous les membres d'équipe depuis l'API
+   */
+  loadAllTeamMembers() {
     this.isLoading = true;
     this.errorMessage = '';
     
-    this.utilisateurService.listUsers(this.currentPage - 1, this.itemsPerPage)
+    // Charger tous les utilisateurs sans pagination
+    this.utilisateurService.listUsers(0, 1000) // Charger un grand nombre pour obtenir tous les utilisateurs
       .subscribe({
         next: (response: WorkersResponse) => {
           this.allTeamMembers = response.content.map(worker => 
             UtilisateurService.workerToTeamMember(worker)
           );
-          this.totalMembers = response.totalElements;
-          this.totalPages = response.totalPages;
+          this.totalMembers = this.allTeamMembers.length;
           this.applyFilters();
           this.isLoading = false;
         },
@@ -98,9 +101,15 @@ isSubmitting: any;
       { id: 1, name: 'Aziz Ndiaye', phone: '+221-70-986-45-43', email: 'azizndiaye@gmail.com', position: 'Gestionnaire de Projet', status: 'affecté', selected: false },
       { id: 2, name: 'Abdoul Cisse', phone: '+221-70-986-45-43', email: 'abdoulcisse@gmail.com', position: 'Ouvrier', status: 'affecté', selected: false },
       { id: 3, name: 'Ndeye Sine', phone: '+221-70-986-45-43', email: 'ndeyesine@gmail.com', position: 'Ouvrier', status: 'non-affecté', selected: false },
+      { id: 4, name: 'Moussa Diop', phone: '+221-70-986-45-44', email: 'moussadiop@gmail.com', position: 'Ouvrier', status: 'en mission', selected: false },
+      { id: 5, name: 'Aminata Fall', phone: '+221-70-986-45-45', email: 'aminatafall@gmail.com', position: 'Chef de chantier', status: 'affecté', selected: false },
+      { id: 6, name: 'Ibrahima Sarr', phone: '+221-70-986-45-46', email: 'ibrahimasarr@gmail.com', position: 'Ouvrier', status: 'non-affecté', selected: false },
+      { id: 7, name: 'Fatou Diagne', phone: '+221-70-986-45-47', email: 'fatoudiagne@gmail.com', position: 'Ouvrier', status: 'inactive', selected: false },
+      { id: 8, name: 'Papa Diallo', phone: '+221-70-986-45-48', email: 'papadiallo@gmail.com', position: 'Ouvrier', status: 'affecté', selected: false },
+      { id: 9, name: 'Khadija Mbaye', phone: '+221-70-986-45-49', email: 'khadijambaye@gmail.com', position: 'Ouvrier', status: 'en mission', selected: false },
+      { id: 10, name: 'Oumar Sow', phone: '+221-70-986-45-50', email: 'oumarsow@gmail.com', position: 'Ouvrier', status: 'non-affecté', selected: false },
     ];
     this.totalMembers = this.allTeamMembers.length;
-    this.totalPages = Math.ceil(this.totalMembers / this.itemsPerPage);
     this.applyFilters();
   }
 
@@ -131,6 +140,7 @@ isSubmitting: any;
 
   calculateTotalPages() {
     this.totalPages = Math.ceil(this.filteredMembers.length / this.itemsPerPage);
+    if (this.totalPages === 0) this.totalPages = 1; // Au moins une page
   }
 
   paginateData() {
@@ -289,7 +299,7 @@ isSubmitting: any;
           this.isCreatingUser = false;
           this.closeCreateUserModal();
           // Recharger la liste des utilisateurs
-          this.loadTeamMembers();
+          this.loadAllTeamMembers();
         },
         error: (error) => {
           console.error('Erreur lors de la création de l\'utilisateur:', error);

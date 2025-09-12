@@ -43,7 +43,7 @@ export class LotsSubcontractorsComponent implements OnInit {
   
   // Pagination
   currentPage = 0;
-  pageSize = 2;
+  pageSize = 6;
   totalElements = 0;
   totalPages = 0;
   isLoading = false;

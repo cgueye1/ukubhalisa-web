@@ -19,6 +19,13 @@ interface EtudeBET {
   rapports?: { id: number; nom: string; taille: string; dateSubmission: string; url: string; versionNumber: number }[];
 }
 
+interface Comment {
+  id: number;
+  content: string;
+  authorName: string;
+  createdAt: number[];
+}
+
 @Component({
   standalone: true,
   imports: [CommonModule, FormsModule],
@@ -38,8 +45,8 @@ export class EtudeBetComponent implements OnInit {
   totalElements = 0;
   totalPages = 0;
   
-  // Property ID (récupéré depuis les paramètres de route)
-  currentPropertyId: number = 19; // Valeur par défaut, sera mise à jour
+  // Property ID (récupéré dynamiquement depuis les paramètres de route)
+  currentPropertyId!: number;
   
   // Popups state
   showCreateModal = false;
@@ -47,7 +54,13 @@ export class EtudeBetComponent implements OnInit {
   showDetailModal = false;
   showValidateModal = false;
   showRejectModal = false;
-  showEditReportModal = false; // Nouveau modal pour éditer les rapports
+  showEditReportModal = false;
+  showCommentsModal = false;
+
+  // Comments
+  comments: Comment[] = [];
+  selectedEtudeForComments: EtudeBET | null = null;
+  newComment = '';
   
   // Forms data
   selectedEtude: EtudeBET | null = null;
@@ -69,7 +82,6 @@ export class EtudeBetComponent implements OnInit {
     betId: 0
   };
 
-  // Nouveau formulaire pour éditer un rapport
   editReport: UpdateBetRequest = {
     title: '',
     file: '',
@@ -88,7 +100,7 @@ export class EtudeBetComponent implements OnInit {
     { id: 4, name: 'ClimaTech' }
   ];
   
-  Math: any;
+  Math: any = Math;
 
   constructor(
     private etudeBetService: EtudeBetService,
@@ -97,13 +109,19 @@ export class EtudeBetComponent implements OnInit {
 
   ngOnInit() {
     // Récupérer le propertyId depuis les paramètres de route
-    this.route.params.subscribe(params => {
-      if (params['propertyId']) {
-        this.currentPropertyId = +params['propertyId'];
-      }
+    this.getPropertyIdFromRoute();
+  }
+
+  private getPropertyIdFromRoute(): void {
+    const idFromUrl = this.route.snapshot.paramMap.get('id');
+    if (idFromUrl) {
+      this.currentPropertyId = +idFromUrl;
       this.newEtude.propertyId = this.currentPropertyId;
       this.loadEtudes();
-    });
+    } else {
+      console.error("ID de propriété non trouvé dans l'URL.");
+      // Vous pouvez gérer l'erreur ou rediriger vers une page d'erreur
+    }
   }
 
   loadEtudes() {
@@ -155,6 +173,30 @@ export class EtudeBetComponent implements OnInit {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
+    });
+  }
+
+  /**
+   * Formate la date d'un commentaire avec heures et minutes
+   */
+  formatCommentDate(dateArray: number[]): string {
+    if (!dateArray || dateArray.length < 3) return '';
+    
+    const date = new Date(
+      dateArray[0], 
+      dateArray[1] - 1, 
+      dateArray[2],
+      dateArray[3] || 0,
+      dateArray[4] || 0,
+      dateArray[5] || 0
+    );
+    
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   }
 
@@ -282,9 +324,54 @@ export class EtudeBetComponent implements OnInit {
     this.showEditModal = true;
   }
 
+  /**
+   * Ouvre le modal de détail et charge les commentaires
+   */
   openDetailModal(etude: EtudeBET) {
     this.selectedEtude = etude;
     this.showDetailModal = true;
+    this.loadCommentsForDetail(etude);
+  }
+
+  /**
+   * Charge les commentaires pour l'affichage dans le modal de détail
+   */
+  private loadCommentsForDetail(etude: EtudeBET) {
+    this.isLoading = true;
+    
+    this.etudeBetService.getComment(etude.id).subscribe({
+      next: (comments) => {
+        this.comments = comments;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des commentaires:', error);
+        this.comments = [];
+        this.isLoading = false;
+      }
+    });
+  }
+
+  /**
+   * Charge les commentaires dans le modal dédié
+   */
+  loadComments(etude: EtudeBET) {
+    this.selectedEtudeForComments = etude;
+    this.isLoading = true;
+    
+    this.etudeBetService.getComment(etude.id).subscribe({
+      next: (comments) => {
+        this.comments = comments;
+        this.showCommentsModal = true;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Erreur lors du chargement des commentaires:', error);
+        this.comments = [];
+        this.showCommentsModal = true;
+        this.isLoading = false;
+      }
+    });
   }
 
   openValidateModal(etude: EtudeBET) {
@@ -298,18 +385,16 @@ export class EtudeBetComponent implements OnInit {
     this.showRejectModal = true;
   }
 
-  // Nouvelle méthode pour ouvrir le modal d'édition de rapport
   openEditReportModal(rapport: { id: number; nom: string; taille: string; dateSubmission: string; url: string; versionNumber: number }, etude: EtudeBET) {
     this.selectedReport = rapport;
     this.selectedEtude = etude;
     
-    // Pré-remplir le formulaire avec les données du rapport
     this.editReport = {
       title: rapport.nom,
-      file: '', // À remplir par l'utilisateur si nécessaire
-      versionNumber: rapport.versionNumber + 1, // Incrémenter automatiquement la version
-      studyRequestId: etude.id, // ID de l'étude
-      authorId: this.currentPropertyId // Utiliser currentPropertyId comme authorId
+      file: '',
+      versionNumber: rapport.versionNumber + 1,
+      studyRequestId: etude.id,
+      authorId: this.currentPropertyId
     };
     
     this.showEditReportModal = true;
@@ -322,9 +407,13 @@ export class EtudeBetComponent implements OnInit {
     this.showValidateModal = false;
     this.showRejectModal = false;
     this.showEditReportModal = false;
+    this.showCommentsModal = false;
     this.selectedEtude = null;
     this.selectedReport = null;
+    this.selectedEtudeForComments = null;
     this.rejectReason = '';
+    this.newComment = '';
+    this.comments = [];
   }
 
   // CRUD operations
@@ -373,18 +462,16 @@ export class EtudeBetComponent implements OnInit {
     }
   }
 
-  // Nouvelle méthode pour mettre à jour un rapport
   updateReport() {
     if (this.selectedReport && this.editReport.title && this.editReport.studyRequestId) {
       this.isLoading = true;
       
-      // S'assurer que l'authorId est bien défini avec currentPropertyId
       this.editReport.authorId = this.currentPropertyId;
       
       this.etudeBetService.updateBet(this.selectedReport.id, this.editReport).subscribe({
         next: (response) => {
           console.log('Rapport mis à jour avec succès:', response);
-          this.loadEtudes(); // Recharger les données
+          this.loadEtudes();
           this.closeAllModals();
           this.isLoading = false;
         },
@@ -396,14 +483,13 @@ export class EtudeBetComponent implements OnInit {
     }
   }
 
-  // Méthode pour supprimer un rapport
   deleteReport(rapport: { id: number; nom: string }, etude: EtudeBET) {
     if (confirm(`Êtes-vous sûr de vouloir supprimer le rapport "${rapport.nom}" ?`)) {
       this.isLoading = true;
       this.etudeBetService.deleteBet(rapport.id).subscribe({
         next: (response) => {
           console.log('Rapport supprimé avec succès');
-          this.loadEtudes(); // Recharger les données
+          this.loadEtudes();
           this.isLoading = false;
         },
         error: (error) => {
@@ -474,10 +560,68 @@ export class EtudeBetComponent implements OnInit {
     }
   }
 
-  // Add comment
-  addComment(etude: EtudeBET, comment: string) {
-    if (comment.trim()) {
-      console.log('Ajout de commentaire - fonctionnalité à implémenter');
+  /**
+   * Ajoute un commentaire depuis le modal de détail
+   */
+  addCommentDetail(content: string) {
+    if (content.trim() && this.selectedEtude) {
+      this.isLoading = true;
+      
+      const commentData = {
+        content: content.trim()
+      };
+
+      // ID utilisateur - remplacez par l'ID de l'utilisateur connecté
+      const userId = 1;
+
+      this.etudeBetService.createComment(
+        this.selectedEtude.id, 
+        userId, 
+        commentData
+      ).subscribe({
+        next: (response) => {
+          console.log('Commentaire ajouté avec succès:', response);
+          // Recharger les commentaires pour afficher le nouveau
+          this.loadCommentsForDetail(this.selectedEtude!);
+        },
+        error: (error) => {
+          console.error('Erreur lors de l\'ajout du commentaire:', error);
+          this.isLoading = false;
+        }
+      });
+    }
+  }
+
+  /**
+   * Ajoute un nouveau commentaire dans le modal dédié
+   */
+  addComment() {
+    if (this.newComment.trim() && this.selectedEtudeForComments) {
+      this.isLoading = true;
+      
+      const commentData = {
+        content: this.newComment
+      };
+
+      // ID utilisateur - remplacez par l'ID de l'utilisateur connecté
+      const userId = 1;
+
+      this.etudeBetService.createComment(
+        this.selectedEtudeForComments.id, 
+        userId, 
+        commentData
+      ).subscribe({
+        next: (response) => {
+          console.log('Commentaire ajouté avec succès:', response);
+          // Recharger les commentaires pour afficher le nouveau
+          this.loadComments(this.selectedEtudeForComments!);
+          this.newComment = '';
+        },
+        error: (error) => {
+          console.error('Erreur lors de l\'ajout du commentaire:', error);
+          this.isLoading = false;
+        }
+      });
     }
   }
 

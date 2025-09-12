@@ -49,7 +49,7 @@ export const routes: Routes = [
         data: { 
           breadcrumb: 'Tableau de Bord Etude',
         },
-        canActivate: [RoleGuard]
+        // canActivate: [RoleGuard]
       },
       {
         path: 'demande',

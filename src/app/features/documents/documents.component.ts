@@ -99,6 +99,7 @@ export class DocumentsComponent implements OnInit {
   isLoading = false;
   showAddDocumentModal = false;
   currentPropertyId = 19; // Vous pouvez recevoir cet ID via les paramètres de route
+  selectedFile: File | null = null; // Ajout pour stocker le fichier sélectionné
 
   // Formulaire pour nouveau document
   newDocument: CreateDocumentRequest = {
@@ -230,43 +231,121 @@ export class DocumentsComponent implements OnInit {
       startDate: '',
       endDate: ''
     };
+    this.selectedFile = null; // Réinitialiser le fichier sélectionné
   }
 
+  // Méthode corrigée pour gérer la sélection de fichier
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
-      // Ici vous pouvez implémenter l'upload du fichier
-      // Pour l'instant, on utilise juste le nom du fichier
+      this.selectedFile = file;
       this.newDocument.file = file.name;
+      console.log('Fichier sélectionné:', file.name, 'Taille:', file.size);
+    } else {
+      this.selectedFile = null;
+      this.newDocument.file = '';
     }
+  }
+
+  // Méthode pour déclencher la sélection de fichier
+  triggerFileInput(): void {
+    const fileInput = document.querySelector('#fileInput') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  // Méthode pour supprimer le fichier sélectionné
+  removeSelectedFile(): void {
+    this.selectedFile = null;
+    this.newDocument.file = '';
+    // Réinitialiser l'input file
+    const fileInput = document.querySelector('#fileInput') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  }
+
+  // Méthode pour obtenir la taille formatée du fichier
+  getFileSize(file: File): string {
+    const bytes = file.size;
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   saveDocument(): void {
     if (this.isFormValid()) {
       this.isLoading = true;
-      this.projectBudgetService.saveDocument(this.newDocument).subscribe({
+  
+      // Fonction pour convertir yyyy-MM-dd en dd-MM-yyyy
+      const formatDateToBackend = (date: string): string => {
+        if (!date) return '';
+        const [year, month, day] = date.split('-');
+        return `${day}-${month}-${year}`;
+      };
+  
+      // Construction du FormData
+      const formData = new FormData();
+      
+      // Ajouter tous les champs du formulaire
+      formData.append('title', this.newDocument.title || '');
+      formData.append('description', this.newDocument.description || '');
+      formData.append('realEstatePropertyId', this.newDocument.realEstatePropertyId.toString() || '');
+      formData.append('typeId', this.newDocument.typeId.toString() || '');
+      
+      // Convertir les dates au format dd-MM-yyyy
+      formData.append('startDate', formatDateToBackend(this.newDocument.startDate) || '');
+      formData.append('endDate', formatDateToBackend(this.newDocument.endDate) || '');
+      
+      // Ajouter le fichier s'il est sélectionné
+      if (this.selectedFile) {
+        formData.append('file', this.selectedFile, this.selectedFile.name);
+      } else {
+        formData.append('file', '');
+      }
+  
+      // Log des données envoyées pour débogage
+      console.log('Données envoyées au backend:', {
+        title: this.newDocument.title,
+        description: this.newDocument.description,
+        realEstatePropertyId: this.newDocument.realEstatePropertyId,
+        typeId: this.newDocument.typeId,
+        startDate: formatDateToBackend(this.newDocument.startDate),
+        endDate: formatDateToBackend(this.newDocument.endDate),
+        file: this.selectedFile ? this.selectedFile.name : 'Aucun fichier'
+      });
+  
+      this.projectBudgetService.saveDocument(formData).subscribe({
         next: (response: Document) => {
           console.log('Document créé avec succès:', response);
-          this.loadDocuments(); // Recharger la liste
+          this.loadDocuments();
           this.closeAddDocumentModal();
           this.isLoading = false;
         },
         error: (error) => {
           console.error('Erreur lors de la création du document:', error);
           this.isLoading = false;
+          alert('Erreur lors de la création du document: ' + (error.error?.message || error.message));
         }
       });
+    } else {
+      console.warn('Formulaire invalide:', this.newDocument);
+      alert('Veuillez remplir tous les champs obligatoires');
     }
   }
-
+  
   isFormValid(): boolean {
-    return !!(
+    const isValid = !!(
       this.newDocument.title.trim() &&
       this.newDocument.description.trim() &&
-      this.newDocument.file &&
-      this.newDocument.typeId &&
-      this.newDocument.startDate &&
-      this.newDocument.endDate
+      this.newDocument.typeId > 0 && // Vérifier que typeId est un ID valide
+      this.newDocument.startDate.match(/^\d{4}-\d{2}-\d{2}$/) && // Vérifier yyyy-MM-dd
+      this.newDocument.endDate.match(/^\d{4}-\d{2}-\d{2}$/) // Vérifier yyyy-MM-dd
     );
+    console.log('Validation du formulaire:', isValid, this.newDocument);
+    return isValid;
   }
 }
