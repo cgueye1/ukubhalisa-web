@@ -46,6 +46,7 @@ import { environment } from '../../../environments/environment.prod';
 import { FormatDatePipe } from '../../pipes/format-date.pipe';
 import { AuthService } from '../auth/services/auth.service';
 import { log } from 'console';
+import { SubscriptionService } from '../../../services/subscription.service';
 
 // Types et interfaces
 interface ProjectListState {
@@ -92,20 +93,28 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
   errorMessage: string = '';
   
-  // Injection de dépendances 
-  private readonly router = inject(Router);
-  public readonly realestateService = inject(RealestateService);
-  private readonly fb = inject(FormBuilder);
-  private apiImagesService = inject(RealestateService);
-  private readonly authservice = inject(AuthService);
-  
+// Injection de dépendances 
+private readonly router = inject(Router);
+public readonly realestateService = inject(RealestateService);
+public readonly subscriptionService = inject(SubscriptionService);
+private readonly fb = inject(FormBuilder);
+private apiImagesService = inject(RealestateService);
+private readonly authservice = inject(AuthService);
+
+private readonly canCreateProjectSignal = signal<boolean>(false);
+private readonly isCheckingPermission = signal<boolean>(true);
+
+// Computed signal pour l'accès dans le template
+readonly canCreateProject = computed(() => this.canCreateProjectSignal());
+readonly checkingPermission = computed(() => this.isCheckingPermission());
+
   promoterId: number = 0;
 
   @Input() project: any;
   filebaseUrl = "https://wakana.online/repertoire_chantier/";
 
   // Configuration pour pagination dynamique
-  private readonly DEFAULT_PAGE_SIZE = 2; // Changé à 2 pour charger par groupes de 2
+  private readonly DEFAULT_PAGE_SIZE = 6; // Changé à 2 pour charger par groupes de 2
   private readonly SEARCH_DEBOUNCE_TIME = 300;
   private readonly REQUEST_TIMEOUT = 15000;
   private readonly MAX_RETRIES = 2;
@@ -197,6 +206,9 @@ export class ProjectsComponent implements OnInit, OnDestroy {
           this.promoterId = response.id;
           console.log("ID utilisateur connecté:", this.promoterId);
           
+          // Vérifier les permissions de création de projet
+          this.checkCanCreateProject();
+          
           this.loadInitialData();
           this.AfficherListeProjetByPrompter();
         } else {
@@ -215,7 +227,43 @@ export class ProjectsComponent implements OnInit, OnDestroy {
       }
     });
   }
+/**
+ * Vérifie si l'utilisateur peut créer un nouveau projet
+ */
+private checkCanCreateProject(): void {
+  if (!this.promoterId || this.promoterId <= 0) {
+    console.warn("Impossible de vérifier les permissions: ID promoteur invalide");
+    this.canCreateProjectSignal.set(false);
+    this.isCheckingPermission.set(false);
+    return;
+  }
 
+  console.log("🔍 Vérification des permissions de création de projet pour userId:", this.promoterId);
+  
+  this.isCheckingPermission.set(true);
+
+  this.subscriptionService.canCreateProject(this.promoterId).pipe(
+    timeout(this.REQUEST_TIMEOUT),
+    retry(1),
+    catchError(error => {
+      console.error("❌ Erreur lors de la vérification des permissions:", error);
+      // En cas d'erreur, on considère que l'utilisateur ne peut pas créer
+      this.canCreateProjectSignal.set(false);
+      return of(false);
+    }),
+    finalize(() => this.isCheckingPermission.set(false)),
+    takeUntil(this.destroy$)
+  ).subscribe({
+    next: (canCreate: boolean) => {
+      console.log("✅ Permission de créer un projet:", canCreate);
+      this.canCreateProjectSignal.set(canCreate);
+    },
+    error: (error) => {
+      console.error("❌ Erreur finale lors de la vérification:", error);
+      this.canCreateProjectSignal.set(false);
+    }
+  });
+}
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

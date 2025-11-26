@@ -1,0 +1,209 @@
+<div class="container mx-auto p-4 bg-[#F5F7FA] min-h-screen">
+  
+    <!-- Loader -->
+    <div *ngIf="isLoading" class="flex items-center justify-center py-20">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF5C01]"></div>
+    </div>
+
+    <div *ngIf="!isLoading && plan" class="space-y-6">
+        <!-- En-tête de la page -->
+        <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <button (click)="router.navigate(['/abonnements'])" class="text-gray-600 hover:text-gray-900">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                </button>
+                <h1 class="text-2xl font-bold text-[#1E293B]">Détails du plan</h1>
+            </div>
+            <div class="flex space-x-3">
+                <!-- Bouton Modifier (couleur #0d47a1) -->
+                <button 
+                    (click)="editPlan()"
+                    class="bg-[#0d47a1] hover:bg-[#0a3a82] text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200 shadow-md">
+                    Modifier
+                </button>
+                <!-- Bouton Désactiver/Activer -->
+                <button 
+                    (click)="deactivatePlan()"
+                    [disabled]="!plan.active"
+                    [ngClass]="{'opacity-50 cursor-not-allowed': !plan.active}"
+                    class="border border-[#FF5C01] text-[#FF5C01] px-6 py-2 rounded-lg font-medium transition-colors duration-200 hover:bg-orange-50">
+                    {{ plan.active ? 'Désactiver' : 'Activer' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Contenu principal en grille -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Colonne de gauche (Détails du plan et Fonctionnalités) - UNE SEULE CARTE -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm space-y-6">
+                    
+                    <!-- Bloc d'informations principales -->
+                    <div class="space-y-4">
+                        <h2 class="text-xl font-extrabold text-gray-900 uppercase">{{ plan.label }}</h2>
+                        <p class="text-gray-600">{{ plan.description }}</p>
+                        <span class="px-3 py-1 rounded-full text-xs font-medium" [ngClass]="getStatutClass(plan.active)">
+                            {{ getStatutText(plan.active) }}
+                        </span>
+                    </div>
+
+                    <!-- Bloc Détails du plan -->
+                    <div class="space-y-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Détails du plan</h3>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <!-- Coût total -->
+                            <div>
+                                <p class="text-gray-500">Coût total</p>
+                                <p class="font-semibold text-gray-900">{{ formatAmount(plan.totalCost) }}</p>
+                            </div>
+                            <!-- Échéances -->
+                            <div>
+                                <p class="text-gray-500">Échéances</p>
+                                <p class="font-semibold text-gray-900">{{ plan.installmentCount }}</p>
+                            </div>
+                            <!-- Limite projets -->
+                            <div>
+                                <p class="text-gray-500">Limite projets</p>
+                                <p class="font-semibold text-gray-900">{{ getProjectLimit(plan) }}</p>
+                            </div>
+                            <!-- Remise annuelle -->
+                            <div>
+                                <p class="text-gray-500">Remise annuelle</p>
+                                <p class="font-semibold text-gray-900">{{ plan.yearlyDiscountRate }}%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bloc Fonctionnalités (Mocké car non dans l'interface SubscriptionPlan) -->
+                    <div class="space-y-4 pt-4 border-t border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-800">Fonctionnalités</h3>
+                        <ul class="space-y-3 text-gray-700">
+                            <li class="flex items-center">
+                                <svg class="h-5 w-5 text-orange-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Gestion de projets illimitée
+                            </li>
+                            <li class="flex items-center">
+                                <svg class="h-5 w-5 text-orange-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Tableau de bord avancé
+                            </li>
+                            <li class="flex items-center">
+                                <svg class="h-5 w-5 text-orange-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Rapports personnalisés
+                            </li>
+                            <li class="flex items-center">
+                                <svg class="h-5 w-5 text-orange-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Support prioritaire
+                            </li>
+                            <li class="flex items-center">
+                                <svg class="h-5 w-5 text-orange-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                                Intégrations API
+                            </li>
+                        </ul>
+                    </div>
+                      <!-- Bouton Supprimer (Reste en dehors de la carte principale) -->
+                <button 
+                (click)="deletePlan()"
+                class="w-full border border-orange-500 text-orange-500 px-6 py-3 rounded-lg font-medium transition-colors duration-200 hover:bg-orange-50">
+                Supprimer
+            </button>
+                </div>
+
+              
+            </div>
+
+            <!-- Colonne de droite (Graphique et Utilisateurs) -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Bloc Répartition des abonnements (Chart.js) -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-800 border-b pb-3 mb-4">Répartition des abonnements</h3>
+                    <div class="flex flex-col md:flex-row items-center justify-around space-y-4 md:space-y-0">
+                        <div class="w-48 h-48">
+                            <canvas #distributionChart></canvas>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex items-center text-gray-700">
+                                <span class="h-3 w-3 rounded-full bg-[#10B981] mr-2"></span>
+                                Payé • {{ distributionData.paid }}%
+                            </div>
+                            <div class="flex items-center text-gray-700">
+                                <span class="h-3 w-3 rounded-full bg-[#EF4444] mr-2"></span>
+                                Impayé • {{ distributionData.unpaid }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloc Utilisateurs abonnés -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-800 border-b pb-3 mb-4">Utilisateurs abonnés</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilisateur</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr *ngFor="let user of subscribedUsers">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10">
+                                                <!-- Placeholder pour l'avatar -->
+                                                <img class="h-10 w-10 rounded-full bg-gray-200" [src]="user.avatarUrl" alt="Avatar" onerror="this.onerror=null; this.src='https://via.placeholder.com/40'">
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">{{ user.name }}</div>
+                                                <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ user.role }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                              [ngClass]="user.status === 'Actif' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                                            {{ user.status }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button (click)="viewUser(user)" class="text-gray-600 hover:text-gray-900 transition-colors" title="Voir l'utilisateur">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message si le plan n'est pas trouvé -->
+    <div *ngIf="!isLoading && !plan" class="text-center py-20">
+        <h2 class="text-xl font-semibold text-gray-700">Plan d'abonnement introuvable</h2>
+        <p class="text-gray-500 mt-2">Veuillez vérifier l'identifiant du plan.</p>
+        <button (click)="router.navigate(['/abonnements'])" class="mt-4 text-[#FF5C01] hover:text-[#E54F00] font-medium">
+            Retourner à la liste des abonnements
+        </button>
+    </div>
+</div>

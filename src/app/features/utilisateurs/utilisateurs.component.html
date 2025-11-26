@@ -1,0 +1,528 @@
+<div class="container mx-auto p-4 bg-[#F5F7FA] min-h-screen">
+    <!-- En-tête -->
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-[#1E293B] mb-2">Gestion des Utilisateurs</h1>
+      <p class="text-gray-600">Créer, modifier, visualiser, rechercher, filtrer les utilisateurs inscrits</p>
+    </div>
+  
+    <!-- Messages d'erreur et de succès -->
+    <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+      {{ errorMessage }}
+    </div>
+    <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+      {{ successMessage }}
+    </div>
+  
+    <!-- Barre de recherche et actions -->
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+      <!-- Recherche -->
+      <div class="relative w-full lg:w-96">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (input)="searchUtilisateurs()"
+          placeholder="Rechercher par nom, email, profil..."
+          class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+        />
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+  
+      <!-- Boutons d'action -->
+      <div class="flex gap-3 w-full lg:w-auto">
+        <button class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="text-gray-700 font-medium">Filtres</span>
+        </button>
+  
+        <button class="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors bg-white">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+          </svg>
+          <span class="text-gray-700 font-medium">Exporter</span>
+        </button>
+  
+        <button 
+          (click)="openCreateModal()"
+          class="bg-[#FF5C01] hover:bg-[#E54F00] text-white px-6 py-3 rounded-lg flex items-center justify-center transition-colors duration-200 font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Nouvel Utilisateur
+        </button>
+      </div>
+    </div>
+  
+    <!-- Loader -->
+    <div *ngIf="isLoading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF5C01]"></div>
+    </div>
+  
+    <!-- Tableau des utilisateurs -->
+    <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Utilisateur</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Profil</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Téléphone</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date d'inscription</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <tr *ngFor="let user of paginatedUtilisateurs" class="hover:bg-gray-50 transition-colors">              <!-- Utilisateur avec point de statut -->
+              <td class="px-6 py-4">
+                <div class="flex items-center">
+                  <div class="w-2 h-2 rounded-full mr-3" [ngClass]="getPointColor(getStatutPoint(user))"></div>
+                  <div>
+                    <div class="text-sm font-semibold text-gray-900">{{ user.prenom }} {{ user.nom }}</div>
+                    <div class="text-sm text-gray-500">{{ user.email }}</div>
+                  </div>
+                </div>
+              </td>
+  
+              <!-- Profil -->
+              <td class="px-6 py-4">
+                <span class="text-sm text-gray-700">{{ user.profil }}</span>
+              </td>
+  
+              <!-- Téléphone -->
+              <td class="px-6 py-4">
+                <span class="text-sm text-gray-700">{{ user.telephone || 'N/A' }}</span>
+              </td>
+  
+              <!-- Statut -->
+              <td class="px-6 py-4">
+                <span class="px-3 py-1 rounded-full text-xs font-medium" [ngClass]="getStatutClass(getUserStatus(user))">
+                  {{ getUserStatus(user) }}
+                </span>
+              </td>
+  
+              <!-- Date d'inscription -->
+              <td class="px-6 py-4">
+                <span class="text-sm text-gray-700">{{ formatDate(user.createdAt) }}</span>
+              </td>
+  
+              <!-- Actions -->
+              <td class="px-6 py-4">
+                <div class="flex items-center gap-3">
+                  <!-- Voir -->
+                  <button (click)="viewUser(user)" class="text-gray-600 hover:text-gray-900 transition-colors" title="Voir">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </button>
+  
+                  <!-- Modifier -->
+                  <button (click)="editUser(user)" class="text-[#FF5C01] hover:text-[#E54F00] transition-colors" title="Modifier">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+  
+                  <!-- Bloquer/Débloquer -->
+                  <button 
+                    (click)="toggleUserStatus(user)" 
+                    [class]="getUserStatus(user) === 'Actif' ? 'text-gray-600 hover:text-gray-900' : 'text-green-600 hover:text-green-700'" 
+                    class="transition-colors" 
+                    [title]="getUserStatus(user) === 'Actif' ? 'Bloquer' : 'Débloquer'">
+                    <svg *ngIf="getUserStatus(user) === 'Actif'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <svg *ngIf="getUserStatus(user) !== 'Actif'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  
+      <!-- Message si aucun résultat -->
+      <div *ngIf="paginatedUtilisateurs.length === 0" class="px-6 py-12 text-center">
+        <p class="text-gray-500">Aucun utilisateur trouvé</p>
+      </div>
+  
+      <!-- Pagination -->
+      <div *ngIf="filteredUtilisateurs.length > 0" class="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+        <div class="text-sm text-gray-600">
+          Affichage de {{ (currentPage * pageSize) + 1 }} à {{ Math.min((currentPage + 1) * pageSize, totalResults) }} sur {{ totalResults }} résultats
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            (click)="previousPage()"
+            [disabled]="currentPage === 0"
+            [class.opacity-50]="currentPage === 0"
+            [class.cursor-not-allowed]="currentPage === 0"
+            class="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium border border-gray-300"
+          >
+            Précédent
+          </button>
+          
+          <button
+            *ngFor="let page of [].constructor(totalPages); let i = index"
+            (click)="goToPage(i)"
+            [class]="i === currentPage ? 'bg-[#FF5C01] text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+            class="w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-colors border border-gray-300"
+          >
+            {{ i + 1 }}
+          </button>
+          
+          <button
+            (click)="nextPage()"
+            [disabled]="currentPage >= totalPages - 1"
+            [class.opacity-50]="currentPage >= totalPages - 1"
+            [class.cursor-not-allowed]="currentPage >= totalPages - 1"
+            class="px-4 py-2 bg-white text-[#FF5C01] rounded-lg hover:bg-gray-50 transition-colors font-medium border border-gray-300"
+          >
+            Suivant
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ==================================================================================================== -->
+  <!-- MODALE DE CRÉATION D'UTILISATEUR -->
+  <!-- ==================================================================================================== -->
+  <div *ngIf="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Nouvel utilisateur</h2>
+        <button (click)="closeCreateModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+  
+      <!-- Messages dans le modal -->
+      <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+        {{ errorMessage }}
+      </div>
+      <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+        {{ successMessage }}
+      </div>
+  
+      <form (ngSubmit)="saveNewUser()">
+        <div class="space-y-6">
+          <!-- Ligne 1: Prénom et Nom -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Prénom *</label>
+              <input
+                type="text"
+                [(ngModel)]="createUserForm.prenom"
+                name="prenom_create"
+                placeholder="Ex: Alpha"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Nom *</label>
+              <input
+                type="text"
+                [(ngModel)]="createUserForm.nom"
+                name="nom_create"
+                placeholder="Ex: Dièye"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          <!-- Ligne 2: Téléphone et Email -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Téléphone *</label>
+              <input
+                type="tel"
+                [(ngModel)]="createUserForm.telephone"
+                name="telephone_create"
+                placeholder="Ex: 70 645 87 92"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+              <input
+                type="email"
+                [(ngModel)]="createUserForm.email"
+                name="email_create"
+                placeholder="Ex: ad1@email.com"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          <!-- Ligne 3: Mot de passe et Profil -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Mot de passe *</label>
+              <input
+                type="password"
+                [(ngModel)]="createUserForm.password"
+                name="password_create"
+                placeholder="Entrez un mot de passe sécurisé"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Profil *</label>
+              <select
+                [(ngModel)]="createUserForm.profil"
+                name="profil_create"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent bg-white appearance-none"
+                style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.25rem;"
+              >
+                <option value="" disabled selected>Sélectionner un profil</option>
+                <option value="PROMOTEUR">Promoteur</option>
+                <option value="MOA">MOA</option>
+                <option value="BET">BET</option>
+                <option value="NOTAIRE">Notaire</option>
+                <option value="RESERVATAIRE">Réservataire</option>
+                <option value="BANK">Banque</option>
+                <option value="AGENCY">Agence</option>
+                <option value="ADMIN">Admin</option>
+                <option value="PROPRIETAIRE">Propriétaire</option>
+                <option value="SYNDIC">Syndic</option>
+                <option value="LOCATAIRE">Locataire</option>
+                <option value="PRESTATAIRE">Prestataire</option>
+                <option value="TOM">TOM</option>
+                <option value="SITE_MANAGER">Site Manager</option>
+                <option value="SUPPLIER">Fournisseur</option>
+                <option value="SUBCONTRACTOR">Sous-traitant</option>
+                <option value="WORKER">Ouvrier</option>
+              </select>
+            </div>
+          </div>
+  
+          <!-- Ligne 4: Adresse et Date de naissance -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Adresse</label>
+              <input
+                type="text"
+                [(ngModel)]="createUserForm.adress"
+                name="adress_create"
+                placeholder="Ex: Dakar, Médina"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Date de naissance</label>
+              <input
+                type="date"
+                [(ngModel)]="createUserForm.date"
+                name="date_create"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          <!-- Ligne 5: Lieu de naissance -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Lieu de naissance</label>
+              <input
+                type="text"
+                [(ngModel)]="createUserForm.lieunaissance"
+                name="lieunaissance_create"
+                placeholder="Ex: Dakar"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+     
+        <!-- Boutons -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8">
+          <button
+            type="submit"
+            [disabled]="isLoading"
+            class="w-full bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            <span *ngIf="!isLoading">Enregistrer</span>
+            <span *ngIf="isLoading" class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Chargement...
+            </span>
+          </button>
+          <button
+            type="button"
+            (click)="closeCreateModal()"
+            [disabled]="isLoading"
+            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Annuler
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- ==================================================================================================== -->
+  <!-- MODALE DE MODIFICATION D'UTILISATEUR -->
+  <!-- ==================================================================================================== -->
+  <div *ngIf="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Modifier l'utilisateur</h2>
+        <button (click)="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+  
+      <!-- Messages dans le modal -->
+      <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+        {{ errorMessage }}
+      </div>
+      <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+        {{ successMessage }}
+      </div>
+  
+      <form (ngSubmit)="saveEditedUser()">
+        <div class="space-y-6">
+          <!-- Ligne 1: Prénom et Nom -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Prénom *</label>
+              <input
+                type="text"
+                [(ngModel)]="editUserForm.prenom"
+                name="prenom_edit"
+                placeholder="Ex: Alpha"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Nom *</label>
+              <input
+                type="text"
+                [(ngModel)]="editUserForm.nom"
+                name="nom_edit"
+                placeholder="Ex: Dièye"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          <!-- Ligne 2: Téléphone et Email -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Téléphone *</label>
+              <input
+                type="tel"
+                [(ngModel)]="editUserForm.telephone"
+                name="telephone_edit"
+                placeholder="Ex: 70 645 87 92"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+              <input
+                type="email"
+                [(ngModel)]="editUserForm.email"
+                name="email_edit"
+                placeholder="Ex: ad1@email.com"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+  
+          <!-- Ligne 3: Profil et Adresse -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Profil *</label>
+              <select
+                [(ngModel)]="editUserForm.profil"
+                name="profil_edit"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent bg-white appearance-none"
+                style="background-image: url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1.25rem;"
+              >
+                <option value="" disabled selected>Sélectionner un profil</option>
+                <option value="PROMOTEUR">Promoteur</option>
+                <option value="MOA">MOA</option>
+                <option value="BET">BET</option>
+                <option value="NOTAIRE">Notaire</option>
+                <option value="RESERVATAIRE">Réservataire</option>
+                <option value="BANK">Banque</option>
+                <option value="AGENCY">Agence</option>
+                <option value="ADMIN">Admin</option>
+                <option value="PROPRIETAIRE">Propriétaire</option>
+                <option value="SYNDIC">Syndic</option>
+                <option value="LOCATAIRE">Locataire</option>
+                <option value="PRESTATAIRE">Prestataire</option>
+                <option value="TOM">TOM</option>
+                <option value="SITE_MANAGER">Site Manager</option>
+                <option value="SUPPLIER">Fournisseur</option>
+                <option value="SUBCONTRACTOR">Sous-traitant</option>
+                <option value="WORKER">Ouvrier</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-900 mb-2">Adresse</label>
+              <input
+                type="text"
+                [(ngModel)]="editUserForm.adress"
+                name="adress_edit"
+                placeholder="Ex: Dakar, Médina"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+     
+        <!-- Boutons -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8">
+          <button
+            type="submit"
+            [disabled]="isLoading"
+            class="w-full bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+          >
+            <span *ngIf="!isLoading">Modifier</span>
+            <span *ngIf="isLoading" class="flex items-center">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Chargement...
+            </span>
+          </button>
+          <button
+            type="button"
+            (click)="closeEditModal()"
+            [disabled]="isLoading"
+            class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Annuler
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>

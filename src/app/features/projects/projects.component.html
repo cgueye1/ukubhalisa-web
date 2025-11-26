@@ -5,14 +5,16 @@
     
     <!-- Modal toggle -->
     <button
-      class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-[10px] flex items-center w-full sm:w-[192px] h-[51px] justify-center"
-      [routerLink]="['/nouveau-projet']" 
-      type="button">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-      </svg>
-      Nouveau Projet
-    </button>
+    *ngIf="canCreateProject() && !checkingPermission()"
+    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-[10px] flex items-center w-full sm:w-[192px] h-[51px] justify-center transition-colors duration-200"
+    [routerLink]="['/nouveau-projet']" 
+    type="button">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+    </svg>
+    Nouveau Projet
+  </button>
+  
   </div>
 
   <!-- Description -->
@@ -69,42 +71,9 @@
       </svg>
     </div>
 
-    <!-- Bouton de réinitialisation -->
-    <!-- <button 
-      type="button"
-      (click)="onClearSearch()"
-      class="px-4 py-2 border border-gray-300 rounded-[8px] bg-white text-gray-700 hover:bg-gray-50 focus:outline-none">
-      Effacer
-    </button> -->
+
   </form>
 
-  <!-- Statistiques (calculées dynamiquement) -->
-  <!-- <div class="bg-white rounded-lg p-4 mb-6 shadow-sm">
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-      <div>
-        <div class="text-2xl font-bold text-gray-800">{{ pagination().totalElements }}</div>
-        <div class="text-sm text-gray-600">Total</div>
-      </div>
-      <div>
-        <div class="text-2xl font-bold text-green-600">
-          {{ projects().filter(p => p.available).length }}
-        </div>
-        <div class="text-sm text-gray-600">Actifs</div>
-      </div>
-      <div>
-        <div class="text-2xl font-bold text-blue-600">
-          {{ projects().filter(p => p.progress > 0 && p.progress < 100).length }}
-        </div>
-        <div class="text-sm text-gray-600">En cours</div>
-      </div>
-      <div>
-        <div class="text-2xl font-bold text-orange-600">
-          {{ projects().filter(p => p.progress >= 100).length }}
-        </div>
-        <div class="text-sm text-gray-600">Terminés</div>
-      </div>
-    </div>
-  </div> -->
 
   <!-- Message d'erreur -->
   <div *ngIf="error() as errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">

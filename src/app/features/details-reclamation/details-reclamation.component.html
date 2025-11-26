@@ -1,0 +1,236 @@
+<div class="container mx-auto p-4 bg-[#F5F7FA] min-h-screen">
+    <!-- En-tête avec boutons -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <!-- Bouton retour -->
+        <button (click)="goBack()" class="text-gray-600 hover:text-gray-900 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
+        <h1 class="text-3xl font-bold text-[#1E293B]">Réclamation #{{ reclamationId }}</h1>
+      </div>
+  
+      <!-- Boutons d'action -->
+      <div class="flex gap-3">
+        <button 
+          (click)="openConfirmationModal()"
+          class="bg-[#0d47a1] hover:bg-[#0c3d8a] text-white px-6 py-3 rounded-lg transition-colors font-medium">
+          Marquer comme résolue
+        </button>
+        <button 
+          (click)="openReassignModal()"
+          class="border-2 border-[#FF5C01] text-[#FF5C01] hover:bg-[#FF5C01] hover:text-white px-6 py-3 rounded-lg transition-colors font-medium">
+          Réassigner
+        </button>
+      </div>
+    </div>
+  
+    <!-- Contenu principal -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Colonne gauche - Informations -->
+      <div class="lg:col-span-1 space-y-6">
+        <!-- Carte utilisateur -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+          <div class="flex items-center mb-4">
+            <div class="relative mr-3">
+              <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl">
+                {{ utilisateur.avatar }}
+              </div>
+              <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white" [ngClass]="getPointColor(utilisateur.pointStatut)"></div>
+            </div>
+            <div>
+              <div class="font-bold text-gray-900">{{ utilisateur.nom }}</div>
+              <div class="text-sm text-gray-500">{{ utilisateur.email }}</div>
+            </div>
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-medium inline-block" [ngClass]="getStatutClass(reclamation.statut)">
+            {{ reclamation.statut }}
+          </span>
+        </div>
+  
+        <!-- Détails du plan -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+          <h3 class="font-bold text-gray-900 mb-4">Détails du plan</h3>
+          
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Catégorie</p>
+              <p class="text-sm font-medium text-gray-900">{{ reclamation.categorie }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Statut</p>
+              <p class="text-sm font-medium text-gray-900">{{ reclamation.statut }}</p>
+            </div>
+          </div>
+  
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Date</p>
+              <p class="text-sm font-medium text-gray-900">{{ reclamation.date }}</p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Pièce jointe</p>
+              <a href="#" class="text-sm font-medium text-blue-600 hover:underline">{{ reclamation.pieceJointe }}</a>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Sujet -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+          <h3 class="font-bold text-gray-900 mb-3">Sujet</h3>
+          <p class="text-gray-700">{{ reclamation.sujet }}</p>
+        </div>
+      </div>
+  
+      <!-- Colonne droite - Conversation -->
+      <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg shadow-sm h-full flex flex-col">
+          <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Conversation</h2>
+          </div>
+  
+          <!-- Messages -->
+          <div class="flex-1 p-6 overflow-y-auto space-y-4" style="max-height: 600px;">
+            <div *ngFor="let message of messages" [ngClass]="message.type === 'user' ? 'flex justify-end' : 'flex justify-start'">
+              <!-- Message admin (gauche) -->
+              <div *ngIf="message.type === 'admin'" class="flex items-start max-w-[70%]">
+                <div class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold text-sm mr-3 flex-shrink-0">
+                  {{ message.initiales }}
+                </div>
+                <div>
+                  <div class="bg-[#F5F7FA] rounded-lg p-4">
+                    <p class="font-semibold text-sm text-gray-900 mb-1">{{ message.auteur }}</p>
+                    <p class="text-gray-700 text-sm">{{ message.contenu }}</p>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1 ml-1">{{ message.timestamp }}</p>
+                </div>
+              </div>
+  
+              <!-- Message utilisateur (droite) -->
+              <div *ngIf="message.type === 'user'" class="max-w-[70%]">
+                <div class="bg-[#FFF2EB] rounded-lg p-4">
+                  <p class="text-gray-700 text-sm">{{ message.contenu }}</p>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 text-right mr-1">{{ message.timestamp }}</p>
+              </div>
+            </div>
+          </div>
+  
+          <!-- Zone de saisie -->
+          <div class="p-6 border-t border-gray-200">
+            <div class="flex items-end gap-3">
+              <div class="flex-1">
+                <textarea
+                  [(ngModel)]="nouvelleReponse"
+                  placeholder="Écrire votre réponse..."
+                  rows="2"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent resize-none"
+                ></textarea>
+              </div>
+              <button 
+                (click)="attachFile()"
+                class="p-3 text-gray-600 hover:text-gray-900 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                </svg>
+              </button>
+              <button 
+                (click)="envoyerReponse()"
+                class="bg-[#FF5C01] hover:bg-[#E54F00] text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                Envoyer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de confirmation -->
+  <div *ngIf="showConfirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+      <div class="flex justify-center mb-6">
+        <div class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+      </div>
+      
+      <h2 class="text-2xl font-bold text-center text-gray-900 mb-3">Marquer comme résolue</h2>
+      
+      <p class="text-center text-gray-600 mb-8">
+        Êtes-vous sûr de vouloir marquer la <span class="font-semibold">réclamation #{{ reclamationId }}</span> comme résolue ? L'utilisateur <span class="font-semibold">{{ utilisateur.nom }}</span> sera notifié de la résolution.
+      </p>
+  
+      <div class="flex gap-4">
+        <button 
+          (click)="confirmerResolution()"
+          class="flex-1 bg-[#1E3A5F] hover:bg-[#152942] text-white py-3 rounded-lg font-medium transition-colors">
+          Confirmer
+        </button>
+        <button 
+          (click)="closeConfirmationModal()"
+          class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal de réassignation -->
+  <div *ngIf="showReassignModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Réassigner à un autre agent</h2>
+        <button (click)="closeReassignModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+  
+      <!-- Agent actuel -->
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Actuellement assignée à</label>
+        <input 
+          type="text" 
+          [value]="agentActuel"
+          disabled
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed">
+      </div>
+  
+      <!-- Sélectionner un agent -->
+      <div class="mb-8">
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Sélectionner un agent</label>
+        <div class="relative">
+          <input 
+            type="text"
+            [(ngModel)]="searchAgent"
+            placeholder="Rechercher ici"
+            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+  
+      <!-- Boutons -->
+      <div class="flex gap-4">
+        <button 
+          (click)="reassignerReclamation()"
+          class="flex-1 bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors">
+          Réassigner
+        </button>
+        <button 
+          (click)="closeReassignModal()"
+          class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors">
+          Annuler
+        </button>
+      </div>
+    </div>
+  </div>

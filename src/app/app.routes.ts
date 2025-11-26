@@ -1,3 +1,4 @@
+import { CreatePlanComponent } from './features/create-plan/create-plan.component';
 // app.routes.ts (version sécurisée)
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
@@ -20,6 +21,13 @@ import { CommandesComponent } from './features/fournisseurs/commandes/commandes.
 import { DashboardfComponent } from './features/fournisseurs/dashboard/dashboard.component';
 import { PortailComponent } from './features/portail/portail/portail.component';
 import { CompteComponent } from './features/compte/compte.component';
+import { UtilisateursComponent } from './features/utilisateurs/utilisateurs.component';
+import { DashboardAdminComponent } from './features/dashboard-admin/dashboard-admin.component';
+import { AbonnementsComponent } from './features/abonnements/abonnements.component';
+import { ReclamationsComponent } from './features/reclamations/reclamations.component';
+import { DetailsReclamationComponent } from './features/details-reclamation/details-reclamation.component';
+import { DetailsUtilisateurComponent } from './features/details-utilisateur/details-utilisateur.component';
+import { DetailsAbonnementComponent } from './features/details-abonnement/details-abonnement.component';
 
 export const routes: Routes = [
   // Redirection par défaut vers la page de connexion
@@ -109,6 +117,7 @@ export const routes: Routes = [
         path: 'detailprojet/:id',
         component: ProjectDetailHeaderComponent,
         data: { breadcrumb: 'Détail Projet' }
+
       },
       {
         path: 'nouveau-projet',
@@ -171,6 +180,80 @@ export const routes: Routes = [
         },
         canActivate: [RoleGuard]
       },
+      
+      {
+        path: 'utilisateurs',
+        component: UtilisateursComponent,
+        data: {
+          breadcrumb: 'Utilisateurs',
+        },
+        canActivate: [RoleGuard]
+      },
+      {
+        path: 'dashboard-admin',
+        component: DashboardAdminComponent,
+        data: {
+          breadcrumb: 'dashboard-admin',
+        },
+      },
+      {
+        path: 'reclamations',
+        component: ReclamationsComponent,
+        data: {
+          breadcrumb: 'reclamations',
+        },
+      },
+
+      {
+        path: 'details-abonnement/:id',
+        component: DetailsAbonnementComponent,
+        data: {
+          breadcrumb: 'details-abonnement',
+        },
+      },
+      
+      {
+        path: 'details-reclamation/:id',
+        component: DetailsReclamationComponent,
+        data: {
+          breadcrumb: 'details-reclamation',
+        },
+        canActivate: [RoleGuard]
+      },
+      {
+        path: 'details-utilisateur/:id',
+        component: DetailsUtilisateurComponent,
+        data: {
+          breadcrumb: 'details-utilisateur',
+        },
+        canActivate: [RoleGuard]
+      },
+      {
+        path: 'create-plan',
+        component: CreatePlanComponent,
+        data: {
+          breadcrumb: 'create-plan',
+        },
+        canActivate: [RoleGuard]
+      },
+      {
+        path: 'create-plan/:id',
+        component: CreatePlanComponent,
+        data: {
+          breadcrumb: 'details-utilisateur',
+        },
+        canActivate: [RoleGuard]
+      },
+      
+      {
+        path: 'abonnements',
+        component: AbonnementsComponent,
+        data: {
+          breadcrumb: 'abonnements',
+        },
+        canActivate: [RoleGuard]
+      },
+      
       {
         path: 'mon-compte',
         component: CompteComponent,

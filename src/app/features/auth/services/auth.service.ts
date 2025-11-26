@@ -145,11 +145,26 @@
     currentUser = this._currentUser.asReadonly();
     isAuthenticated = this._isAuthenticated.asReadonly();
     
-    // ✅ CORRECTION: Computed signals pour les informations utilisateur
-    userProfile = computed(() => {
-      const user = this._currentUser();
-      return user?.profil && user.profil.length > 0 ? user.profil : null;
-    });
+ // ✅ CORRECTION: Améliorer le computed signal userProfile
+userProfile = computed(() => {
+  const user = this._currentUser();
+  if (!user) return null;
+  
+  // Retourner toujours un array pour la cohérence
+  if (user.profils && typeof user.profils === 'string') {
+    return [user.profils as any];
+  }
+  
+  if (Array.isArray(user.profil) && user.profil.length > 0) {
+    return user.profil;
+  }
+  
+  if (typeof user.profil === 'string') {
+    return [user.profil as any];
+  }
+  
+  return null;
+});
 
     userFullName = computed(() => {
       const user = this._currentUser();
@@ -179,7 +194,32 @@
         user.enabled &&
         user.activated : false;
     });
-
+    isADMINProfile(): boolean {
+      const user = this.currentUser();
+      if (!user) {
+        return false;
+      }
+      
+      console.log("🔍 Vérification profil ADMIN - profil du User connecté:", user.profil);
+      console.log("🔍 Vérification profil ADMIN - profils du User connecté:", user.profils);
+      
+      // Vérifier d'abord la propriété "profils" (string) de l'API
+      if (user.profils && typeof user.profils === 'string') {
+        return user.profils === 'ADMIN';
+      }
+      
+      // Ensuite vérifier la propriété "profil" (array) de l'interface
+      if (user.profil && Array.isArray(user.profil)) {
+        return user.profil.includes('ADMIN' as any);
+      }
+      
+      // Vérifier aussi si "profil" est une string
+      if (user.profil && typeof user.profil === 'string') {
+        return user.profil === 'ADMIN';
+      }
+      
+      return false;
+    }
     isBETProfile(): boolean {
       const user = this.currentUser();
       if (!user) {
@@ -712,6 +752,28 @@
 
       return errors;
     }
+    // ✅ NOUVELLE MÉTHODE: Récupérer le premier profil de manière fiable
+getUserFirstProfile(): string | null {
+  const user = this._currentUser();
+  if (!user) return null;
+  
+  // Vérifier la propriété profils (string) en premier
+  if (user.profils && typeof user.profils === 'string') {
+    return user.profils;
+  }
+  
+  // Ensuite vérifier profil (array)
+  if (Array.isArray(user.profil) && user.profil.length > 0) {
+    return user.profil[0];
+  }
+  
+  // Fallback: profil comme string
+  if (typeof user.profil === 'string') {
+    return user.profil as any;
+  }
+  
+  return null;
+}
 
     // ✅ MÉTHODE DE DEBUG
     debugAuthState(): void {

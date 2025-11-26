@@ -357,13 +357,16 @@
       </div>
       
       <!-- Badge phase -->
-      <div class="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-        {{ photo.phase || photo.alt }}
+      <div class="absolute bottom-2 left-2 text-white bg-[#3d3734] bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+       <div>{{ photo.phase || photo.alt }}</div> 
+        <span>    {{ photo.date }}</span>
       </div>
+
+      
       
       <!-- Badge date -->
-      <div class="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
-        {{ photo.date }}
+      <div class="absolute top-2 right-2 bg-black-100 text-white text-xs px-2 py-1 rounded">
+    
       </div>
       
       <!-- Overlay au hover -->

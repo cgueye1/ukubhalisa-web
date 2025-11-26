@@ -49,8 +49,6 @@
                 <div class="bg-white rounded-lg shadow-sm">
                     <!-- Onglets -->
                     <div class="border-b border-gray-200 px-8 pt-6">
-        <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ getPageTitle() }}</h1>
-
                         <nav class="flex space-x-8" aria-label="Tabs">
                             <button type="button" (click)="setActiveTab('informations')" [class]="activeTab() === 'informations' 
                     ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
@@ -181,144 +179,405 @@
                         }
 
                         @if (activeTab() === 'abonnements') {
-                        <!-- Contenu Abonnements -->
                         <div>
-                            <!-- Barre de recherche et filtre -->
-                            <div class="flex flex-col sm:flex-row gap-4 mb-6">
-                                <div class="flex-1 relative">
-                                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                    <input type="text" placeholder="Rechercher ici"
-                                        class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent" />
+                            @if (isCheckingSubscription()) {
+                            <!-- Chargement de la vérification -->
+                            <div class="flex justify-center items-center py-12">
+                                <svg class="animate-spin h-8 w-8 text-[#ff5c01]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </div>
+                            } @else {
+                            @if (hasActiveSubscription()) {
+                            <!-- Affichage de l'abonnement en cours -->
+                            <div class="space-y-6">
+                                <!-- En-tête avec badge actif -->
+                                <div class="bg-gradient-to-r from-[#ff5c01] to-[#ff7a33] rounded-xl p-6 text-white">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                                                <svg class="w-8 h-8 text-[#ff5c01]" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-2xl font-bold">Mon abonnement</h3>
+                                                <p class="text-white/90 mt-1">Date d'expiration : {{ getExpirationDate() }}</p>
+                                            </div>
+                                        </div>
+                                        <span class="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold">
+                                            Actif
+                                        </span>
+                                    </div>
                                 </div>
-                                <select
-                                    class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent bg-white">
-                                    <option value="all">Tous les status</option>
-                                    <option value="Actif">Actif</option>
-                                    <option value="Expiré">Expiré</option>
-                                </select>
+
+                                <!-- Détails de l'abonnement -->
+                                <div class="bg-white border-2 border-gray-100 rounded-xl p-8">
+                                    <h4 class="text-xl font-bold text-gray-900 mb-6">Détail de l'abonnement</h4>
+
+                                    <div class="space-y-4">
+                                        <!-- Nom du plan -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Nom du plan</span>
+                                            <span class="text-gray-900 font-semibold">{{ getCurrentPlanName() }}</span>
+                                        </div>
+
+                                        <!-- Sous-titre -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Sous-titre</span>
+                                            <span class="text-gray-900 font-bold">{{ getCurrentPlanLabel() }}</span>
+                                        </div>
+
+                                        <!-- Statut paiement -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Statut paiement</span>
+                                            <span class="inline-flex items-center gap-2">
+                                                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                                <span class="text-green-600 font-semibold">Payé</span>
+                                            </span>
+                                        </div>
+
+                                        <!-- Période -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Période</span>
+                                            <span class="text-gray-900 font-medium">{{ getSubscriptionPeriod() }}</span>
+                                        </div>
+
+                                        <!-- Montant payé -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Montant payé</span>
+                                            <span class="text-gray-900 font-bold text-lg">{{ getCurrentPlanAmount() }}</span>
+                                        </div>
+
+                                        <!-- Mode de paiement -->
+                                        <div class="flex justify-between items-center py-3 border-b border-gray-100">
+                                            <span class="text-gray-600">Mode de paiement</span>
+                                            <span class="text-gray-900 font-medium">{{ getPaymentMethod() }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Avantages -->
+                                    <div class="mt-8 p-6 bg-gray-50 rounded-lg">
+                                        <h5 class="font-semibold text-gray-900 mb-4">Avantages inclus :</h5>
+                                        <ul class="space-y-3">
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-[#ff5c01] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span class="text-gray-700">
+                                                    @if (isUnlimitedProjects()) {
+                                                    Projets illimités
+                                                    } @else {
+                                                    {{ getProjectLimit() }} projet{{ getProjectLimit() > 1 ? 's' : '' }} maximum
+                                                    }
+                                                </span>
+                                            </li>
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-[#ff5c01] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span class="text-gray-700">MOA, BET, Chef & Ouvrier</span>
+                                            </li>
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-[#ff5c01] mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span class="text-gray-700">Support prioritaire</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            } @else {
+                            <!-- Affichage des plans disponibles -->
+                            @if (isLoadingPlans()) {
+                            <div class="flex justify-center items-center py-12">
+                                <svg class="animate-spin h-8 w-8 text-[#ff5c01]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </div>
+                            } @else {
+                            <!-- Sélecteur de période -->
+                            <div class="flex justify-center mb-8">
+                                <div class="bg-gray-100 rounded-lg p-1 inline-flex relative">
+                                    @if (basicPlan() && basicPlan()!.yearlyDiscountRate > 0) {
+                                    <div
+                                        class="absolute -top-2 -right-2 bg-[#ff5c01] text-white text-xs font-bold px-2 py-1 rounded-full">
+                                        -{{ basicPlan()!.yearlyDiscountRate }}%
+                                    </div>
+                                    }
+
+                                    <button type="button" (click)="toggleBillingPeriod()" [class]="!isYearlyBilling() ? 'px-6 py-2 rounded-md bg-white shadow-sm text-gray-900 font-medium' : 'px-6 py-2 rounded-md text-gray-600 font-medium'">
+                                        Mensuel
+                                    </button>
+                                    <button type="button" (click)="toggleBillingPeriod()" [class]="isYearlyBilling() ? 'px-6 py-2 rounded-md bg-white shadow-sm text-gray-900 font-medium' : 'px-6 py-2 rounded-md text-gray-600 font-medium'">
+                                        Annuel
+                                    </button>
+                                </div>
                             </div>
 
-                            <!-- Tableau des abonnements -->
-                            <div class="bg-gray-50 rounded-lg overflow-hidden">
-                                <table class="w-full">
-                                    <thead class="bg-gray-100">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Pack</th>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Date debut
-                                            </th>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Date fin
-                                            </th>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Statut
-                                            </th>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        @for (abonnement of getFilteredAbonnements(); track abonnement.id) {
-                                        <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ abonnement.pack }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ abonnement.dateDebut }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ abonnement.dateFin }}</td>
-                                            <td class="px-6 py-4">
-                                                @if (abonnement.statut === 'Actif') {
-                                                <span
-                                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
-                                                    Actif
+                            <!-- Cartes d'abonnement -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                                <!-- Carte Basic -->
+                                @if (basicPlan()) {
+                                <div
+                                    class="relative border-2 border-[#ff5c01] bg-white rounded-2xl shadow-lg overflow-hidden">
+                                    <div class="p-8">
+                                        <div class="text-center mb-6">
+                                            <h3 class="text-2xl font-bold text-gray-900 mb-2">
+                                                {{ getPlanLabel(basicPlan()!) }}
+                                            </h3>
+                                            <div class="flex items-baseline justify-center gap-1 mb-4">
+                                                <span class="text-3xl font-bold text-gray-900">
+                                                    {{ formatPrice(basicPlan()!) }}
                                                 </span>
-                                                } @else {
-                                                <span
-                                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-700">
-                                                    Expiré
-                                                </span>
-                                                }
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                @if (abonnement.statut === 'Expiré') {
-                                                <button (click)="renouvelerAbonnement(abonnement.id)"
-                                                    class="text-[#ff5c01] hover:text-[#e54f00] transition-colors">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                                        </path>
-                                                    </svg>
-                                                </button>
-                                                } @else {
-                                                <button (click)="telechargerAbonnement(abonnement.id)"
-                                                    class="text-gray-600 hover:text-gray-800 transition-colors">
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                                        </path>
-                                                    </svg>
-                                                </button>
-                                                }
-                                            </td>
-                                        </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
+                                                <span class="text-gray-600">FCFA</span>
+                                                <span class="text-gray-500 text-sm">/ {{ isYearlyBilling() ? 'mois
+                                                    (annuel)' : 'mois' }}</span>
+                                            </div>
 
-                            <!-- Pagination -->
-                            <div class="flex items-center justify-between mt-6">
-                                <div class="flex items-center gap-2 text-sm text-gray-600">
-                                    <span>éléments par page:</span>
-                                    <select class="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent">
-                                        <option>10</option>
-                                        <option>20</option>
-                                        <option>50</option>
-                                    </select>
-                                    <span class="ml-4">1 - 1 sur 4</span>
+                                            @if (isYearlyBilling() && basicPlan()!.yearlyDiscountRate > 0) {
+                                            <div class="text-sm text-gray-500">
+                                                <span class="line-through">{{ (basicPlan()!.totalCost *
+                                                    12).toLocaleString('fr-FR') }} FCFA/an</span>
+                                                <span class="ml-2 text-green-600 font-semibold">
+                                                    Économisez {{ basicPlan()!.yearlyDiscountRate }}%
+                                                </span>
+                                            </div>
+                                            }
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <p class="text-gray-700 text-sm text-center">
+                                                {{ getPlanDescription(basicPlan()!) }}
+                                            </p>
+                                        </div>
+
+                                        <ul class="space-y-4 mb-8">
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="text-gray-700">
+                                                    @if (basicPlan()!.unlimitedProjects) {
+                                                    Projets illimités
+                                                    } @else {
+                                                    {{ basicPlan()!.projectLimit }} projet{{ basicPlan()!.projectLimit >
+                                                    1 ? 's' : '' }} maximum
+                                                    }
+                                                </span>
+                                            </li>
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="text-gray-700">
+                                                    Paiement en {{ basicPlan()!.installmentCount }} fois
+                                                </span>
+                                            </li>
+                                            @if (basicPlan()!.yearlyDiscountRate > 0) {
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="text-gray-700">
+                                                    {{ basicPlan()!.yearlyDiscountRate }}% de réduction en paiement
+                                                    annuel
+                                                </span>
+                                            </li>
+                                            }
+                                        </ul>
+
+                                        <button (click)="subscribeToPlan('Basic')" [disabled]="isProcessingBasic()"
+                                            [class.opacity-50]="isProcessingBasic()"
+                                            [class.cursor-not-allowed]="isProcessingBasic()"
+                                            class="w-full py-3 border-2 border-[#ff5c01] text-[#ff5c01] font-semibold rounded-full hover:bg-[#ff5c01] hover:text-white transition-colors flex items-center justify-center gap-2">
+                                            @if (isProcessingBasic()) {
+                                            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            <span>Traitement...</span>
+                                            } @else {
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                            </svg>
+                                            <span>Souscrire</span>
+                                            }
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M15 19l-7-7 7-7"></path>
-                                        </svg>
-                                    </button>
-                                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M9 5l7 7-7 7"></path>
-                                        </svg>
-                                    </button>
+                                } @else {
+                                <div class="flex items-center justify-center p-8 bg-gray-50 rounded-2xl">
+                                    <p class="text-gray-500">Plan Basic non disponible</p>
                                 </div>
+                                }
+
+                                <!-- Carte Premium -->
+                                @if (premiumPlan()) {
+                                <div class="relative bg-gradient-to-br shadow rounded-2xl shadow-lg overflow-hidden">
+                                    <div
+                                        class="absolute top-4 right-4 bg-[#ff5c01] text-white text-xs font-bold px-3 py-1 rounded-full">
+                                        POPULAIRE
+                                    </div>
+
+                                    <div class="p-8">
+                                        <div class="text-center mb-6">
+                                            <h3 class="text-2xl font-bold mb-2">
+                                                {{ getPlanLabel(premiumPlan()!) }}
+                                            </h3>
+                                            <div class="flex items-baseline justify-center gap-1 mb-4">
+                                                <span class="text-3xl font-bold">
+                                                    {{ formatPrice(premiumPlan()!) }}
+                                                </span>
+                                                <span class="">FCFA</span>
+                                                <span class=" text-sm">/ {{ isYearlyBilling() ? 'mois (annuel)' : 'mois'
+                                                    }}</span>
+                                            </div>
+
+                                            @if (isYearlyBilling() && premiumPlan()!.yearlyDiscountRate > 0) {
+                                            <div class="text-sm ">
+                                                <span class="line-through">{{ (premiumPlan()!.totalCost *
+                                                    12).toLocaleString('fr-FR') }} FCFA/an</span>
+                                                <span class="ml-2  font-semibold">
+                                                    Économisez {{ premiumPlan()!.yearlyDiscountRate }}%
+                                                </span>
+                                            </div>
+                                            }
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <p class=" text-sm text-center">
+                                                {{ getPlanDescription(premiumPlan()!) }}
+                                            </p>
+                                        </div>
+
+                                        <ul class="space-y-4 mb-8">
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5  mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="text-black">
+                                                    @if (premiumPlan()!.unlimitedProjects) {
+                                                    Projets illimités
+                                                    } @else {
+                                                    {{ premiumPlan()!.projectLimit }} projet{{ premiumPlan()!.projectLimit
+                                                    > 1 ? 's' : '' }} maximum
+                                                    }
+                                                </span>
+                                            </li>
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5  mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="">
+                                                    Paiement en {{ premiumPlan()!.installmentCount }} fois
+                                                </span>
+                                            </li>
+                                            @if (premiumPlan()!.yearlyDiscountRate > 0) {
+                                            <li class="flex items-start gap-3">
+                                                <svg class="w-5 h-5  mt-0.5 flex-shrink-0" fill="none"
+                                                    stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M5 13l4 4L19 7"></path>
+                                                </svg>
+                                                <span class="">
+                                                    {{ premiumPlan()!.yearlyDiscountRate }}% de réduction en paiement
+                                                    annuel
+                                                </span>
+                                            </li>
+                                            }
+                                        </ul>
+
+                                        <button (click)="subscribeToPlan('Premium')" [disabled]="isProcessingPremium()"
+                                            [class.opacity-50]="isProcessingPremium()"
+                                            [class.cursor-not-allowed]="isProcessingPremium()"
+                                            class="w-full py-3 bg-[#ff5c01] text-white font-semibold rounded-full transition-colors flex items-center justify-center gap-2">
+                                            @if (isProcessingPremium()) {
+                                            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            <span>Traitement...</span>
+                                            } @else {
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                            </svg>
+                                            <span>Passer à Premium</span>
+                                            }
+                                        </button>
+                                    </div>
+                                </div>
+                                } @else {
+                                <div class="flex items-center justify-center p-8 bg-gray-50 rounded-2xl">
+                                    <p class="text-gray-500">Plan Premium non disponible</p>
+                                </div>
+                                }
                             </div>
+                            }
+                            }
+                            }
                         </div>
                         }
 
                         @if (activeTab() === 'factures') {
                         <!-- Contenu Factures -->
-                        <div>
-                            <!-- Barre de recherche et filtre -->
-                            <div class="flex flex-col sm:flex-row gap-4 mb-6">
-                                <div class="flex-1 relative">
-                                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-                                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
-                                    <input type="text" placeholder="Rechercher ici"
-                                        class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent" />
-                                </div>
-                                <select
-                                    class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent bg-white">
-                                    <option value="all">Tous les status</option>
-                                    <option value="Payée">Payée</option>
-                                    <option value="En attente">En attente</option>
-                                </select>
+                        <!-- Barre de recherche et filtre -->
+                        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                            <div class="flex-1 relative">
+                                <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <input type="text" placeholder="Rechercher ici"
+                                    class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent" />
                             </div>
-
+                            <select
+                                class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent bg-white">
+                                <option value="all">Tous les status</option>
+                                <option value="Actif">Actif</option>
+                                <option value="Expiré">Expiré</option>
+                            </select>
+                        </div>
+                        <div>
+                            @if (isLoadingFactures()) {
+                            <div class="flex justify-center items-center py-12">
+                                <svg class="animate-spin h-8 w-8 text-[#ff5c01]" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </div>
+                            } @else {
                             <!-- Tableau des factures -->
                             <div class="bg-gray-50 rounded-lg overflow-hidden">
                                 <table class="w-full">
@@ -326,9 +585,12 @@
                                         <tr>
                                             <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Référence
                                             </th>
-                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Échéance
+                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Date de
+                                                paiement
                                             </th>
                                             <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Montant
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Plan
                                             </th>
                                             <th class="px-6 py-3 text-left text-sm font-medium text-gray-600">Statut
                                             </th>
@@ -337,14 +599,24 @@
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
+                                        @if (factures().length === 0) {
+                                        <tr>
+                                            <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                                                Aucune facture disponible
+                                            </td>
+                                        </tr>
+                                        } @else {
                                         @for (facture of getFilteredFactures(); track facture.id) {
                                         <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-6 py-4 text-sm text-gray-900">{{ facture.reference }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-600">{{ facture.echeance }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-900 font-medium">{{ facture.montant
+                                            <td class="px-6 py-4 text-sm text-gray-900 font-medium">{{
+                                                facture.invoiceNumber }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-600">{{ formatDate(facture.createdAt)
                                                 }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-900 font-medium">{{
+                                                formatMontant(facture.amount) }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-600">{{ facture.planLabel }}</td>
                                             <td class="px-6 py-4">
-                                                @if (facture.statut === 'Payée') {
+                                                @if (facture.paid) {
                                                 <span
                                                     class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
                                                     Payée
@@ -358,8 +630,8 @@
                                             </td>
                                             <td class="px-6 py-4">
                                                 <div class="flex items-center gap-2">
-                                                    @if (facture.statut === 'En attente') {
-                                                    <button (click)="payerFacture(facture.id)"
+                                                    @if (!facture.paid) {
+                                                    <button (click)="payerFacture(facture.id.toString())"
                                                         class="inline-flex items-center gap-2 px-4 py-2 bg-[#00B894] hover:bg-[#00a080] text-white text-sm font-medium rounded-lg transition-colors">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
@@ -370,7 +642,8 @@
                                                     </button>
                                                     } @else {
                                                     <button (click)="telechargerFacture(facture.id)"
-                                                        class="text-gray-600 hover:text-gray-800 transition-colors">
+                                                        class="text-gray-600 hover:text-gray-800 transition-colors"
+                                                        title="Télécharger">
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -384,29 +657,34 @@
                                             </td>
                                         </tr>
                                         }
+                                        }
                                     </tbody>
                                 </table>
                             </div>
 
                             <!-- Pagination -->
+                            @if (totalFactures() > 0) {
                             <div class="flex items-center justify-between mt-6">
                                 <div class="flex items-center gap-2 text-sm text-gray-600">
-                                    <span>éléments par page:</span>
-                                    <select class="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#ff5c01] focus:border-transparent">
-                                        <option>10</option>
-                                        <option>20</option>
-                                        <option>50</option>
-                                    </select>
-                                    <span class="ml-4">1 - 1 sur 4</span>
+                                    <span>{{ getPageInfo() }}</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                                    <button (click)="goToPreviousPage()" [disabled]="currentPage() === 0"
+                                        [class.opacity-50]="currentPage() === 0"
+                                        [class.cursor-not-allowed]="currentPage() === 0"
+                                        class="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:hover:text-gray-400">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M15 19l-7-7 7-7"></path>
                                         </svg>
                                     </button>
-                                    <button class="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                                    <span class="text-sm text-gray-600">
+                                        Page {{ currentPage() + 1 }} sur {{ totalPages() }}
+                                    </span>
+                                    <button (click)="goToNextPage()" [disabled]="currentPage() === totalPages() - 1"
+                                        [class.opacity-50]="currentPage() === totalPages() - 1"
+                                        [class.cursor-not-allowed]="currentPage() === totalPages() - 1"
+                                        class="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:hover:text-gray-400">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M9 5l7 7-7 7"></path>
@@ -414,9 +692,13 @@
                                     </button>
                                 </div>
                             </div>
+                            }
+                            }
                         </div>
                         }
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>

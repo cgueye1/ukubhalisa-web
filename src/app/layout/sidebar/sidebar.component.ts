@@ -1,3 +1,4 @@
+
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router } from '@angular/router';
 import { BreadcrumbService } from '../../core/services/breadcrumb-service.service';
@@ -60,21 +61,52 @@ export class SidebarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Initialise le menu actif selon le profil de l'utilisateur
+   * Détermine la route du tableau de bord initial selon le profil de l'utilisateur
    */
-  private initializeActiveMenu(): void {
-    if (this.isBETProfile()) {
-      // Pour les profils BET, défaut sur tableau de bord étude
-      this.activeMenu = 'dashboard-etude';
+  getInitialDashboardRoute(): string {
+    if (this.isADMINProfile()) {
+      return '/dashboard-admin';
+    } else if (this.isBETProfile()) {
+      return '/dashboard-etude';
+    } else if (this.isSUPPLIERProfile()) {
+      return '/dashboardf';
     } else {
-      // Pour les autres profils, défaut sur dashboard principal
-      this.activeMenu = 'dashboard';
+      return '/dashboard';
     }
   }
 
   /**
-   * Vérifie si l'utilisateur connecté a un profil BET
-   * @returns boolean - true si l'utilisateur est BET, false sinon
+   * Initialise le menu actif selon le profil de l'utilisateur
+   */
+  private initializeActiveMenu(): void {
+    const route = this.getInitialDashboardRoute();
+    // Supprime le '/' initial pour obtenir l'ID du menu
+    this.activeMenu = route.substring(1); 
+  }
+
+  /**
+   * Vérifie si l'utilisateur connecté a un profil ADMIN
+   * @returns boolean - true si l'utilisateur est ADMIN, false sinon
+   */
+  isADMINProfile(): boolean {
+    const user = this.authService.currentUser();
+    if (!user) {
+      return false;
+    }
+
+    // Vérifier si le profil est "ADMIN" (string) ou si c'est un tableau contenant "ADMIN"
+    if (typeof user.profil === 'string') {
+      return user.profil === 'ADMIN';
+    } else if (Array.isArray(user.profil)) {
+      return user.profil.includes('ADMIN' as any);
+    }
+
+    return false;
+  }
+
+  /**
+   * Vérifie si l'utilisateur connecté a un profil SUPPLIER
+   * @returns boolean - true si l'utilisateur est SUPPLIER, false sinon
    */
   isSUPPLIERProfile(): boolean {
     const user = this.authService.currentUser();
@@ -82,7 +114,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    // Vérifier si le profil est "BET" (string) ou si c'est un tableau contenant "BET"
+    // Vérifier si le profil est "SUPPLIER" (string) ou si c'est un tableau contenant "SUPPLIER"
     if (typeof user.profil === 'string') {
       return user.profil === 'SUPPLIER';
     } else if (Array.isArray(user.profil)) {
@@ -92,6 +124,10 @@ export class SidebarComponent implements OnInit, OnDestroy {
     return false;
   }
   
+  /**
+   * Vérifie si l'utilisateur connecté a un profil BET
+   * @returns boolean - true si l'utilisateur est BET, false sinon
+   */
   isBETProfile(): boolean {
     const user = this.authService.currentUser();
     if (!user) {
@@ -129,6 +165,40 @@ export class SidebarComponent implements OnInit, OnDestroy {
     return '';
   }
 
+  /**
+   * Obtient le profil traduit de l'utilisateur
+   * @returns string - Le profil traduit ou une chaîne vide
+   */
+  getTranslatedProfile(): string {
+    const profileTranslations: { [key: string]: string } = {
+      'SITE_MANAGER': 'Manager',
+      'SUBCONTRACTOR': 'Sous-traitant',
+      'SUPPLIER': 'Fournisseur',
+      'ADMIN': 'Administrateur',
+      'BET': 'Bureau d\'études',
+      'USER': 'Utilisateur'
+    };
+
+    const user = this.authService.currentUser();
+    if (!user || !user.profil) {
+      return '';
+    }
+
+    // Gestion du profil string
+    if (typeof user.profil === 'string') {
+      return profileTranslations[user.profil] || user.profil;
+    } 
+    
+    // Gestion du profil array
+    if (Array.isArray(user.profil)) {
+      return user.profil
+        .map(p => profileTranslations[p.toString()] || p.toString())
+        .join(', ');
+    }
+
+    return '';
+  }
+
   // Méthode pour basculer l'affichage du sous-menu des paramètres
   toggleParametres(): void {
     this.showParametres = !this.showParametres;
@@ -143,7 +213,7 @@ export class SidebarComponent implements OnInit, OnDestroy {
     this.router.navigate([path]);
 
     // Mise à jour du fil d'Ariane
-    if (path === '/dashboard' || path === '/dashboard-etude' || path === '/dashboardf') {
+    if (path === '/dashboard' || path === '/dashboard-etude' || path === '/dashboardf' || path === '/dashboard-admin') {
       // Cas particulier pour Dashboard: on reset le fil d'Ariane à juste "Accueil"
       this.breadcrumbService.reset();
     } else {
@@ -224,10 +294,6 @@ export class SidebarComponent implements OnInit, OnDestroy {
     return this.authService.getUserInitials();
   }
 
-  // Méthodes pour vérifier les profils (adaptées pour BET)
-
-
-
   // Méthode pour obtenir des informations supplémentaires sur l'utilisateur
   getUserEmail(): string {
     const user = this.currentUser;
@@ -249,7 +315,9 @@ export class SidebarComponent implements OnInit, OnDestroy {
    */
   debugUserProfile(): void {
     console.log('Current User:', this.currentUser);
+    console.log('Is ADMIN Profile:', this.isADMINProfile());
     console.log('Is BET Profile:', this.isBETProfile());
+    console.log('Is SUPPLIER Profile:', this.isSUPPLIERProfile());
     console.log('User Profile:', this.getUserProfile());
     console.log('User Profil Type:', typeof this.currentUser?.profil);
     console.log('User Profil Value:', this.currentUser?.profil);

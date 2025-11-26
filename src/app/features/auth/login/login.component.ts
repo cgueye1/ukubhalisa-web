@@ -231,79 +231,111 @@ export class LoginComponent implements OnInit {
     });
   }
   
- private processLoginSuccess(response: any): void {
-  try {
-    console.log('📥 Réponse serveur complète:', response);
-
-    // Indicateurs de profil
-    let isBET = false;
-    let isSUPPLIER = false;
-
+  private processLoginSuccess(response: any): void {
     try {
-      // ✅ Décoder le token JWT
-      const tokenParts = response?.token?.split('.');
-      if (!tokenParts || tokenParts.length < 2) {
-        throw new Error('Token JWT invalide ou manquant');
+      console.log('📥 Réponse serveur complète:', response);
+
+      // Indicateurs de profil
+      let isBET = false;
+      let isSUPPLIER = false;
+      let isADMIN = false;
+
+      try {
+        // ✅ Décoder le token JWT
+        const tokenParts = response?.token?.split('.');
+        if (!tokenParts || tokenParts.length < 2) {
+          throw new Error('Token JWT invalide ou manquant');
+        }
+
+        const payload = JSON.parse(atob(tokenParts[1]));
+        console.log('🔍 Payload JWT:', payload);
+
+        // ✅ Lecture flexible du profil
+        const profile = payload.profil || payload.profile || payload.role;
+        isBET = profile === 'BET';
+        isSUPPLIER = profile === 'SUPPLIER';
+        isADMIN = profile === 'ADMIN';
+
+        console.log('✅ Profil détecté:', profile, '| isBET:', isBET, '| isSUPPLIER:', isSUPPLIER, '| isADMIN:', isADMIN);
+
+      } catch (tokenError) {
+        console.error('❌ Impossible de lire le token, utilisation du service:', tokenError);
+
+        // 🔁 Fallback: vérifier via le service Auth
+        setTimeout(() => {
+          const isBETFallback = this.authService.isBETProfile();
+          const isSUPPLIERFallback = this.authService.isSUPPLIERProfile();
+          const isADMINFallback = this.authService.isADMINProfile();
+          console.log('🔄 Fallback - Vérification via service:', { 
+            isBETFallback, 
+            isSUPPLIERFallback, 
+            isADMINFallback 
+          });
+          this.isLoading.set(false);
+          this.redirectToDashboard(isBETFallback, isSUPPLIERFallback, isADMINFallback);
+        }, 300);
+        return;
       }
 
-      const payload = JSON.parse(atob(tokenParts[1]));
-      console.log('🔍 Payload JWT:', payload);
+      // ✅ Redirection principale
+      this.isLoading.set(false);
+      this.redirectToDashboard(isBET, isSUPPLIER, isADMIN);
 
-      // ✅ Lecture flexible du profil
-      const profile = payload.profil || payload.profile || payload.role;
-      isBET = profile === 'BET';
-      isSUPPLIER = profile === 'SUPPLIER';
+    } catch (error) {
+      console.error('❌ Erreur critique lors du traitement:', error);
+      this.isLoading.set(false);
+      this.redirectToDashboard(false, false, false);
+    }
+  }
 
-      console.log('✅ Profil détecté:', profile, '| isBET:', isBET, '| isSUPPLIER:', isSUPPLIER);
+  private redirectToDashboard(isBET?: boolean, isSUPPLIER?: boolean, isADMIN?: boolean): void {
+    // 🔄 Valeurs par défaut si non définies
+    if (isBET === undefined) isBET = this.authService.isBETProfile();
+    if (isSUPPLIER === undefined) isSUPPLIER = this.authService.isSUPPLIERProfile();
+    if (isADMIN === undefined) isADMIN = this.authService.isADMINProfile();
 
-    } catch (tokenError) {
-      console.error('❌ Impossible de lire le token, utilisation du service:', tokenError);
+    console.log('🎯 Redirection finale - isBET:', isBET, '| isSUPPLIER:', isSUPPLIER, '| isADMIN:', isADMIN);
 
-      // 🔁 Fallback: vérifier via le service Auth
-      setTimeout(() => {
-        const isBETFallback = this.authService.isBETProfile();
-        const isSUPPLIERFallback = this.authService.isSUPPLIERProfile();
-        console.log('🔄 Fallback - Vérification via service:', { isBETFallback, isSUPPLIERFallback });
-        this.isLoading.set(false);
-        this.redirectToDashboard(isBETFallback, isSUPPLIERFallback);
-      }, 300);
+    // ✅ PRIORITÉ 1: Redirection ADMIN
+    if (isADMIN) {
+      console.log('✅ Redirection vers dashboard ADMIN');
+      this.router.navigate(['/dashboard-admin']).then(success => {
+        this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace administrateur.');
+        if (!success) {
+          console.warn('⚠️ Redirection vers dashboard-admin échouée, fallback vers dashboard');
+          this.router.navigate(['/dashboard']);
+        }
+      });
       return;
     }
 
-    // ✅ Redirection principale
-    this.isLoading.set(false);
-    this.redirectToDashboard(isBET, isSUPPLIER);
+    // ✅ PRIORITÉ 2: Redirection BET
+    if (isBET) {
+      console.log('✅ Redirection vers dashboard BET');
+      this.router.navigate(['/dashboard-etude']).then(success => {
+        this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace BET.');
+        if (!success) {
+          console.warn('⚠️ Redirection vers dashboard-etude échouée, fallback vers dashboard');
+          this.router.navigate(['/dashboard']);
+        }
+      });
+      return;
+    }
 
-  } catch (error) {
-    console.error('❌ Erreur critique lors du traitement:', error);
-    this.isLoading.set(false);
-    this.redirectToDashboard(false, false);
-  }
-}
+    // ✅ PRIORITÉ 3: Redirection SUPPLIER
+    if (isSUPPLIER) {
+      console.log('✅ Redirection vers dashboard fournisseur');
+      this.router.navigate(['/dashboardf']).then(success => {
+        this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace fournisseur.');
+        if (!success) {
+          console.warn('⚠️ Redirection vers dashboardf échouée, fallback vers dashboard');
+          this.router.navigate(['/dashboard']);
+        }
+      });
+      return;
+    }
 
-
-private redirectToDashboard(isBET?: boolean, isSUPPLIER?: boolean): void {
-  // 🔄 Valeurs par défaut si non définies
-  if (isBET === undefined) isBET = this.authService.isBETProfile();
-  if (isSUPPLIER === undefined) isSUPPLIER = this.authService.isSUPPLIERProfile();
-
-  console.log('🎯 Redirection finale - isBET:', isBET, '| isSUPPLIER:', isSUPPLIER);
-
-  if (isBET) {
-    console.log('✅ Redirection vers dashboard BET');
-    this.router.navigate(['/dashboard-etude']).then(success => {
-      this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace BET.');
-      if (!success) this.router.navigate(['/dashboard']);
-    });
-
-  } else if (isSUPPLIER) {
-    console.log('✅ Redirection vers dashboard fournisseur');
-    this.router.navigate(['/dashboardf']).then(success => {
-      this.showAlert('success', 'Connexion réussie ! Bienvenue sur votre espace fournisseur.');
-      if (!success) this.router.navigate(['/dashboard']);
-    });
-
-  } else {
+    // ✅ PRIORITÉ 4: Redirection standard
     console.log('✅ Redirection vers dashboard standard');
     this.router.navigate(['/dashboard']).then(success => {
       if (success) {
@@ -311,7 +343,6 @@ private redirectToDashboard(isBET?: boolean, isSUPPLIER?: boolean): void {
       }
     });
   }
-}
 
   private handleLoginError(err: any): void {
     let errorMessage = 'Erreur de connexion';
