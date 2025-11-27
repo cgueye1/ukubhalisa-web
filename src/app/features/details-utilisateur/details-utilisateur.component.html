@@ -1,408 +1,370 @@
 <div class="container mx-auto p-4 bg-[#F5F7FA] min-h-screen">
-    <!-- Messages d'erreur et de succès -->
+  <!-- Messages d'erreur et de succès -->
+  <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+    {{ errorMessage }}
+  </div>
+  <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+    {{ successMessage }}
+  </div>
+
+  <!-- Loader -->
+  <div *ngIf="isLoading && !utilisateur" class="flex justify-center items-center py-12">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF5C01]"></div>
+  </div>
+
+  <!-- Contenu principal -->
+  <div *ngIf="utilisateur">
+    <!-- En-tête avec boutons -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-4">
+        <!-- Bouton retour -->
+        <button (click)="goBack()" class="text-gray-600 hover:text-gray-900 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </button>
+        <h1 class="text-3xl font-bold text-[#1E293B]">Détails de l'utilisateur</h1>
+      </div>
+
+      <!-- Boutons d'action -->
+      <div class="flex gap-3">
+        <button (click)="openEditModal()"
+          class="bg-[#0d47a1] hover:bg-[#0c3d8a] text-white px-6 py-3 rounded-lg transition-colors font-medium">
+          Modifier
+        </button>
+        <button (click)="openSuspendModal()"
+          class="border-2 border-[#FF5C01] text-[#FF5C01] hover:bg-[#FF5C01] hover:text-white px-6 py-3 rounded-lg transition-colors font-medium">
+          {{ getUserStatus() === 'Actif' ? 'Suspendre' : 'Activer' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Colonne gauche - Informations utilisateur -->
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-lg p-8 shadow-sm text-center">
+          <!-- Avatar -->
+          <div class="flex justify-center mb-6">
+            <div
+              class="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-5xl shadow-lg">
+              {{ getUserAvatar() }}
+            </div>
+          </div>
+
+          <!-- Nom et profil -->
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ utilisateur.prenom }} {{ utilisateur.nom }}</h2>
+          <p class="text-gray-600 mb-4">{{ utilisateur.profil }}</p>
+          <span class="px-4 py-2 rounded-full text-sm font-medium inline-block"
+            [ngClass]="getStatutClass(getUserStatus())">
+            {{ getUserStatus() }}
+          </span>
+
+          <!-- Informations de contact -->
+          <div class="mt-8 space-y-4 text-left">
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Téléphone</p>
+              <p class="text-sm font-semibold text-gray-900">{{ utilisateur.telephone || 'N/A' }}</p>
+            </div>
+
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Email</p>
+              <p class="text-sm font-semibold text-gray-900 break-all">{{ utilisateur.email }}</p>
+            </div>
+
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Adresse</p>
+              <p class="text-sm font-semibold text-gray-900">{{ utilisateur.adress || 'N/A' }}</p>
+            </div>
+
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Date d'inscription</p>
+              <p class="text-sm font-semibold text-gray-900">{{ formatDate(utilisateur.createdAt) }}</p>
+            </div>
+
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Compte activé</p>
+              <p class="text-sm font-semibold text-gray-900">{{ utilisateur.activated ? 'Oui' : 'Non' }}</p>
+            </div>
+
+            <div>
+              <p class="text-sm text-gray-500 mb-1">Compte déverrouillé</p>
+              <p class="text-sm font-semibold text-gray-900">{{ utilisateur.accountNonLocked ? 'Oui' : 'Non' }}</p>
+            </div>
+          </div>
+
+          <!-- Bouton supprimer -->
+          <button (click)="openDeleteModal()"
+            class="w-full mt-8 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-lg transition-colors font-medium">
+            Supprimer le compte
+          </button>
+        </div>
+      </div>
+
+      <!-- Colonne droite - Historiques -->
+      <div class="lg:col-span-3 space-y-6">
+        <!-- Historique des abonnements -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Historique des abonnements</h2>
+          </div>
+
+          <div *ngIf="abonnements.length > 0" class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Plan</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Montant</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date début</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date fin</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let abonnement of abonnements" class="hover:bg-gray-50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ abonnement.plan }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.montant }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.dateDebut }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.dateFin }}</td>
+                  <td class="px-6 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-medium"
+                      [ngClass]="getStatutAbonnementClass(abonnement.statut)">
+                      {{ abonnement.statut }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="abonnements.length === 0" class="px-6 py-12 text-center">
+            <p class="text-gray-500">Aucun abonnement pour cet utilisateur</p>
+          </div>
+        </div>
+
+        <!-- Historique des paiements -->
+        <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-gray-200">
+            <h2 class="text-xl font-bold text-gray-900">Historique des paiements</h2>
+          </div>
+
+          <div *ngIf="paiements.length > 0" class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">ID Facture</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Montant</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200">
+                <tr *ngFor="let paiement of paiements" class="hover:bg-gray-50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ paiement.idFacture }}</td>
+                  <td class="px-6 py-4 text-sm text-gray-700">{{ paiement.date }}</td>
+                  <td class="px-6 py-4 text-sm font-semibold text-gray-900">{{ paiement.montant }}</td>
+                  <td class="px-6 py-4">
+                    <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      {{ paiement.statut }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4">
+                    <button (click)="downloadFacture(paiement)"
+                      class="text-gray-600 hover:text-gray-900 transition-colors" title="Télécharger">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                          d="M12 15.577L8.461 12.039L9.169 11.319L11.5 13.65V5H12.5V13.65L14.83 11.32L15.539 12.039L12 15.577ZM6.616 19C6.15533 19 5.771 18.846 5.463 18.538C5.155 18.23 5.00067 17.8453 5 17.384V14.961H6V17.384C6 17.538 6.064 17.6793 6.192 17.808C6.32 17.9367 6.461 18.0007 6.615 18H17.385C17.5383 18 17.6793 17.936 17.808 17.808C17.9367 17.68 18.0007 17.5387 18 17.384V14.961H19V17.384C19 17.8447 18.846 18.229 18.538 18.537C18.23 18.845 17.8453 18.9993 17.384 19H6.616Z"
+                          fill="#0D47A1" />
+                      </svg>
+
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div *ngIf="paiements.length === 0" class="px-6 py-12 text-center">
+            <p class="text-gray-500">Aucun paiement enregistré pour cet utilisateur</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de modification -->
+<div *ngIf="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-4xl w-full p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Modifier l'utilisateur</h2>
+      <button (click)="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages dans le modal -->
     <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
       {{ errorMessage }}
     </div>
     <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
       {{ successMessage }}
     </div>
-  
-    <!-- Loader -->
-    <div *ngIf="isLoading && !utilisateur" class="flex justify-center items-center py-12">
-      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF5C01]"></div>
-    </div>
-  
-    <!-- Contenu principal -->
-    <div *ngIf="utilisateur">
-      <!-- En-tête avec boutons -->
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-4">
-          <!-- Bouton retour -->
-          <button (click)="goBack()" class="text-gray-600 hover:text-gray-900 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          <h1 class="text-3xl font-bold text-[#1E293B]">Détails de l'utilisateur</h1>
+
+    <form (ngSubmit)="saveUser()">
+      <!-- Première ligne: Prénom et Nom -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Prénom *</label>
+          <input type="text" [(ngModel)]="userForm.prenom" name="prenom" placeholder="Ex: Alpha" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent" />
         </div>
-  
-        <!-- Boutons d'action -->
-        <div class="flex gap-3">
-          <button 
-            (click)="openEditModal()"
-            class="bg-[#0d47a1] hover:bg-[#0c3d8a] text-white px-6 py-3 rounded-lg transition-colors font-medium">
-            Modifier
-          </button>
-          <button 
-            (click)="openSuspendModal()"
-            class="border-2 border-[#FF5C01] text-[#FF5C01] hover:bg-[#FF5C01] hover:text-white px-6 py-3 rounded-lg transition-colors font-medium">
-            {{ getUserStatus() === 'Actif' ? 'Suspendre' : 'Activer' }}
-          </button>
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Nom *</label>
+          <input type="text" [(ngModel)]="userForm.nom" name="nom" placeholder="Ex: Dièye" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent" />
         </div>
       </div>
-  
-      <!-- Contenu principal -->
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <!-- Colonne gauche - Informations utilisateur -->
-        <div class="lg:col-span-1">
-          <div class="bg-white rounded-lg p-8 shadow-sm text-center">
-            <!-- Avatar -->
-            <div class="flex justify-center mb-6">
-              <div class="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-5xl shadow-lg">
-                {{ getUserAvatar() }}
-              </div>
-            </div>
-  
-            <!-- Nom et profil -->
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ utilisateur.prenom }} {{ utilisateur.nom }}</h2>
-            <p class="text-gray-600 mb-4">{{ utilisateur.profil }}</p>
-            <span class="px-4 py-2 rounded-full text-sm font-medium inline-block" [ngClass]="getStatutClass(getUserStatus())">
-              {{ getUserStatus() }}
-            </span>
-  
-            <!-- Informations de contact -->
-            <div class="mt-8 space-y-4 text-left">
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Téléphone</p>
-                <p class="text-sm font-semibold text-gray-900">{{ utilisateur.telephone || 'N/A' }}</p>
-              </div>
-  
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Email</p>
-                <p class="text-sm font-semibold text-gray-900 break-all">{{ utilisateur.email }}</p>
-              </div>
-  
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Adresse</p>
-                <p class="text-sm font-semibold text-gray-900">{{ utilisateur.adress || 'N/A' }}</p>
-              </div>
-  
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Date d'inscription</p>
-                <p class="text-sm font-semibold text-gray-900">{{ formatDate(utilisateur.createdAt) }}</p>
-              </div>
-  
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Compte activé</p>
-                <p class="text-sm font-semibold text-gray-900">{{ utilisateur.activated ? 'Oui' : 'Non' }}</p>
-              </div>
-  
-              <div>
-                <p class="text-sm text-gray-500 mb-1">Compte déverrouillé</p>
-                <p class="text-sm font-semibold text-gray-900">{{ utilisateur.accountNonLocked ? 'Oui' : 'Non' }}</p>
-              </div>
-            </div>
-  
-            <!-- Bouton supprimer -->
-            <button 
-              (click)="openDeleteModal()"
-              class="w-full mt-8 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white py-3 rounded-lg transition-colors font-medium">
-              Supprimer le compte
-            </button>
-          </div>
+
+      <!-- Deuxième ligne: Téléphone et Email -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Téléphone *</label>
+          <input type="tel" [(ngModel)]="userForm.telephone" name="telephone" placeholder="Ex: 70 645 87 92" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent" />
         </div>
-  
-        <!-- Colonne droite - Historiques -->
-        <div class="lg:col-span-3 space-y-6">
-          <!-- Historique des abonnements -->
-          <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-gray-200">
-              <h2 class="text-xl font-bold text-gray-900">Historique des abonnements</h2>
-            </div>
-            
-            <div *ngIf="abonnements.length > 0" class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Plan</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Montant</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date début</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date fin</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr *ngFor="let abonnement of abonnements" class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ abonnement.plan }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.montant }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.dateDebut }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-700">{{ abonnement.dateFin }}</td>
-                    <td class="px-6 py-4">
-                      <span class="px-3 py-1 rounded-full text-xs font-medium" [ngClass]="getStatutAbonnementClass(abonnement.statut)">
-                        {{ abonnement.statut }}
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div *ngIf="abonnements.length === 0" class="px-6 py-12 text-center">
-              <p class="text-gray-500">Aucun abonnement pour cet utilisateur</p>
-            </div>
-          </div>
-  
-          <!-- Historique des paiements -->
-          <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div class="p-6 border-b border-gray-200">
-              <h2 class="text-xl font-bold text-gray-900">Historique des paiements</h2>
-            </div>
-            
-            <div *ngIf="paiements.length > 0" class="overflow-x-auto">
-              <table class="w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">ID Facture</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Montant</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Statut</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-gray-700">Action</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr *ngFor="let paiement of paiements" class="hover:bg-gray-50 transition-colors">
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ paiement.idFacture }}</td>
-                    <td class="px-6 py-4 text-sm text-gray-700">{{ paiement.date }}</td>
-                    <td class="px-6 py-4 text-sm font-semibold text-gray-900">{{ paiement.montant }}</td>
-                    <td class="px-6 py-4">
-                      <span class="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                        {{ paiement.statut }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4">
-                      <button (click)="downloadFacture(paiement)" class="text-gray-600 hover:text-gray-900 transition-colors" title="Télécharger">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            
-            <div *ngIf="paiements.length === 0" class="px-6 py-12 text-center">
-              <p class="text-gray-500">Aucun paiement enregistré pour cet utilisateur</p>
-            </div>
-          </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
+          <input type="email" [(ngModel)]="userForm.email" name="email" placeholder="Ex: ad1@email.com" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent" />
         </div>
       </div>
-    </div>
-  </div>
-  
-  <!-- Modal de modification -->
-  <div *ngIf="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl max-w-4xl w-full p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Modifier l'utilisateur</h2>
-        <button (click)="closeEditModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-  
-      <!-- Messages dans le modal -->
-      <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-        {{ errorMessage }}
-      </div>
-      <div *ngIf="successMessage" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-        {{ successMessage }}
-      </div>
-  
-      <form (ngSubmit)="saveUser()">
-        <!-- Première ligne: Prénom et Nom -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Prénom *</label>
-            <input
-              type="text"
-              [(ngModel)]="userForm.prenom"
-              name="prenom"
-              placeholder="Ex: Alpha"
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Nom *</label>
-            <input
-              type="text"
-              [(ngModel)]="userForm.nom"
-              name="nom"
-              placeholder="Ex: Dièye"
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
-            />
-          </div>
+
+      <!-- Troisième ligne: Profil et Adresse -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Profil *</label>
+          <select [(ngModel)]="userForm.profil" name="profil" required
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent appearance-none bg-white">
+            <option value="" disabled>Sélectionner un profil</option>
+            <option value="PROMOTEUR">Promoteur</option>
+            <option value="MOA">MOA</option>
+            <option value="BET">BET</option>
+            <option value="NOTAIRE">Notaire</option>
+            <option value="RESERVATAIRE">Réservataire</option>
+            <option value="BANK">Banque</option>
+            <option value="AGENCY">Agence</option>
+            <option value="ADMIN">Admin</option>
+            <option value="PROPRIETAIRE">Propriétaire</option>
+            <option value="SYNDIC">Syndic</option>
+            <option value="LOCATAIRE">Locataire</option>
+            <option value="PRESTATAIRE">Prestataire</option>
+            <option value="TOM">TOM</option>
+            <option value="SITE_MANAGER">Site Manager</option>
+            <option value="SUPPLIER">Fournisseur</option>
+            <option value="SUBCONTRACTOR">Sous-traitant</option>
+            <option value="WORKER">Ouvrier</option>
+          </select>
         </div>
-  
-        <!-- Deuxième ligne: Téléphone et Email -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Téléphone *</label>
-            <input
-              type="tel"
-              [(ngModel)]="userForm.telephone"
-              name="telephone"
-              placeholder="Ex: 70 645 87 92"
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Email *</label>
-            <input
-              type="email"
-              [(ngModel)]="userForm.email"
-              name="email"
-              placeholder="Ex: ad1@email.com"
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
-            />
-          </div>
-        </div>
-  
-        <!-- Troisième ligne: Profil et Adresse -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Profil *</label>
-            <select
-              [(ngModel)]="userForm.profil"
-              name="profil"
-              required
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent appearance-none bg-white"
-            >
-              <option value="" disabled>Sélectionner un profil</option>
-              <option value="PROMOTEUR">Promoteur</option>
-              <option value="MOA">MOA</option>
-              <option value="BET">BET</option>
-              <option value="NOTAIRE">Notaire</option>
-              <option value="RESERVATAIRE">Réservataire</option>
-              <option value="BANK">Banque</option>
-              <option value="AGENCY">Agence</option>
-              <option value="ADMIN">Admin</option>
-              <option value="PROPRIETAIRE">Propriétaire</option>
-              <option value="SYNDIC">Syndic</option>
-              <option value="LOCATAIRE">Locataire</option>
-              <option value="PRESTATAIRE">Prestataire</option>
-              <option value="TOM">TOM</option>
-              <option value="SITE_MANAGER">Site Manager</option>
-              <option value="SUPPLIER">Fournisseur</option>
-              <option value="SUBCONTRACTOR">Sous-traitant</option>
-              <option value="WORKER">Ouvrier</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-semibold text-gray-900 mb-2">Adresse</label>
-            <input
-              type="text"
-              [(ngModel)]="userForm.adress"
-              name="adress"
-              placeholder="Ex: Dakar, Médina"
-              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent"
-            />
-          </div>
-        </div>
-  
-        <!-- Boutons -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            type="submit"
-            [disabled]="isLoading"
-            class="bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span *ngIf="!isLoading">Modifier</span>
-            <span *ngIf="isLoading">Chargement...</span>
-          </button>
-          <button
-            type="button"
-            (click)="closeEditModal()"
-            [disabled]="isLoading"
-            class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Annuler
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-  
-  <!-- Modal de suspension/activation -->
-  <div *ngIf="showSuspendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
-      <div class="flex justify-center mb-6">
-        <div class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+        <div>
+          <label class="block text-sm font-semibold text-gray-900 mb-2">Adresse</label>
+          <input type="text" [(ngModel)]="userForm.adress" name="adress" placeholder="Ex: Dakar, Médina"
+            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF5C01] focus:border-transparent" />
         </div>
       </div>
-      
-      <h2 class="text-2xl font-bold text-center text-gray-900 mb-3">
-        {{ getUserStatus() === 'Actif' ? 'Suspendre l   \'utilisateur' : 'Activer l\'utilisateur' }}
-      </h2>
-      
-      <p class="text-center text-gray-600 mb-8">
-        Êtes-vous sûr de vouloir <span class="font-semibold">{{ getUserStatus() === 'Actif' ? 'suspendre' : 'activer' }}</span> l'utilisateur 
-        <span class="font-semibold">{{ utilisateur?.prenom }} {{ utilisateur?.nom }}</span> ?
-        <br><br>
-        <span *ngIf="getUserStatus() === 'Actif'">L'utilisateur ne pourra plus accéder à son compte jusqu'à sa réactivation.</span>
-        <span *ngIf="getUserStatus() !== 'Actif'">L'utilisateur pourra à nouveau accéder à son compte.</span>
-      </p>
-  
-      <div class="flex gap-4">
-        <button 
-          (click)="confirmSuspension()"
-          [disabled]="isLoading"
-          class="flex-1 bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          <span *ngIf="!isLoading">{{ getUserStatus() === 'Actif' ? 'Suspendre' : 'Activer' }}</span>
+
+      <!-- Boutons -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button type="submit" [disabled]="isLoading"
+          class="bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <span *ngIf="!isLoading">Modifier</span>
           <span *ngIf="isLoading">Chargement...</span>
         </button>
-        <button 
-          (click)="closeSuspendModal()"
-          [disabled]="isLoading"
-          class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <button type="button" (click)="closeEditModal()" [disabled]="isLoading"
+          class="bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           Annuler
         </button>
       </div>
-    </div>
+    </form>
   </div>
-  
-  <!-- Modal de suppression -->
-  <div *ngIf="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
-      <div class="flex justify-center mb-6">
-        <div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </div>
-      </div>
-      
-      <h2 class="text-2xl font-bold text-center text-gray-900 mb-3">Supprimer l'utilisateur</h2>
-      
-      <p class="text-center text-gray-600 mb-8">
-        Êtes-vous sûr de vouloir <span class="font-semibold text-red-600">supprimer définitivement</span> l'utilisateur 
-        <span class="font-semibold">{{ utilisateur?.prenom }} {{ utilisateur?.nom }}</span> ?
-        <br><br>
-        <span class="text-red-600 font-semibold">Cette action est irréversible !</span>
-      </p>
-  
-      <div class="flex gap-4">
-        <button 
-          (click)="deleteUser()"
-          [disabled]="isLoading"
-          class="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          <span *ngIf="!isLoading">Supprimer</span>
-          <span *ngIf="isLoading">Suppression...</span>
-        </button>
-        <button 
-          (click)="closeDeleteModal()"
-          [disabled]="isLoading"
-          class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          Annuler
-        </button>
+</div>
+
+<!-- Modal de suspension/activation -->
+<div *ngIf="showSuspendModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+    <div class="flex justify-center mb-6">
+      <div class="w-20 h-20 rounded-full bg-orange-100 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-orange-400" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
       </div>
     </div>
+
+    <h2 class="text-2xl font-bold text-center text-gray-900 mb-3">
+      {{ getUserStatus() === 'Actif' ? 'Suspendre l \'utilisateur' : 'Activer l\'utilisateur' }}
+    </h2>
+
+    <p class="text-center text-gray-600 mb-8">
+      Êtes-vous sûr de vouloir <span class="font-semibold">{{ getUserStatus() === 'Actif' ? 'suspendre' : 'activer'
+        }}</span> l'utilisateur
+      <span class="font-semibold">{{ utilisateur?.prenom }} {{ utilisateur?.nom }}</span> ?
+      <br><br>
+      <span *ngIf="getUserStatus() === 'Actif'">L'utilisateur ne pourra plus accéder à son compte jusqu'à sa
+        réactivation.</span>
+      <span *ngIf="getUserStatus() !== 'Actif'">L'utilisateur pourra à nouveau accéder à son compte.</span>
+    </p>
+
+    <div class="flex gap-4">
+      <button (click)="confirmSuspension()" [disabled]="isLoading"
+        class="flex-1 bg-[#FF5C01] hover:bg-[#E54F00] text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="!isLoading">{{ getUserStatus() === 'Actif' ? 'Suspendre' : 'Activer' }}</span>
+        <span *ngIf="isLoading">Chargement...</span>
+      </button>
+      <button (click)="closeSuspendModal()" [disabled]="isLoading"
+        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Annuler
+      </button>
+    </div>
   </div>
+</div>
+
+<!-- Modal de suppression -->
+<div *ngIf="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
+    <div class="flex justify-center mb-6">
+      <div class="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </div>
+    </div>
+
+    <h2 class="text-2xl font-bold text-center text-gray-900 mb-3">Supprimer l'utilisateur</h2>
+
+    <p class="text-center text-gray-600 mb-8">
+      Êtes-vous sûr de vouloir <span class="font-semibold text-red-600">supprimer définitivement</span> l'utilisateur
+      <span class="font-semibold">{{ utilisateur?.prenom }} {{ utilisateur?.nom }}</span> ?
+      <br><br>
+      <span class="text-red-600 font-semibold">Cette action est irréversible !</span>
+    </p>
+
+    <div class="flex gap-4">
+      <button (click)="deleteUser()" [disabled]="isLoading"
+        class="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        <span *ngIf="!isLoading">Supprimer</span>
+        <span *ngIf="isLoading">Suppression...</span>
+      </button>
+      <button (click)="closeDeleteModal()" [disabled]="isLoading"
+        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Annuler
+      </button>
+    </div>
+  </div>
+</div>
