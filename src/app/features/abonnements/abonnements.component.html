@@ -152,15 +152,7 @@
                 </button>
 
 
-                <!-- Supprimer -->
-                <button (click)="confirmDelete(plan)" class="text-red-600 hover:text-red-700 transition-colors"
-                  title="Supprimer">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+
               </div>
             </td>
           </tr>
@@ -233,3 +225,93 @@
     </div>
   </div>
 </div>
+<!-- 🆕 NOTIFICATION DE SUCCÈS -->
+<div *ngIf="showNotification" class="fixed top-4 right-4 bg-white rounded-lg shadow-xl p-4 w-80 z-[60] animate-slideIn">
+
+  <!-- Notification Désactivation -->
+  <div *ngIf="notificationType === 'deactivated'" class="flex items-start gap-3">
+    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div class="flex-1">
+      <p class="text-sm text-gray-900">
+        Plan <strong>"{{ selectedPlanForAction?.label }}"</strong> a été désactivé.
+      </p>
+    </div>
+  </div>
+
+  <!-- Notification Activation -->
+  <div *ngIf="notificationType === 'activated'" class="flex items-start gap-3">
+    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div class="flex-1">
+      <p class="text-sm text-gray-900">
+        Plan <strong>"{{ selectedPlanForAction?.label }}"</strong> a été activé.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- 🆕 MODAL DE CONFIRMATION ACTIVER/DÉSACTIVER -->
+<div *ngIf="showToggleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl p-6 w-96 animate-fadeIn">
+
+    <!-- Icône d'alerte -->
+    <div class="flex justify-center mb-4">
+      <svg width="95" height="95" viewBox="0 0 95 95" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M51.2422 58.166L43.8203 58.166L43.8203 28.4785L51.2422 28.4785L51.2422 58.166Z" fill="#EFBD8E" />
+        <path
+          d="M47.5 65.291C45.3685 65.291 43.6406 67.0189 43.6406 69.1504C43.6406 71.2819 45.3685 73.0098 47.5 73.0098C49.6315 73.0098 51.3594 71.2819 51.3594 69.1504C51.3594 67.0189 49.6315 65.291 47.5 65.291Z"
+          fill="#EFBD8E" />
+        <path
+          d="M47.5 94.9776C59.6972 95.3703 71.5436 90.595 80.446 81.6968C89.3483 72.7986 94.5815 60.5025 95 47.5C94.5815 34.4975 89.3483 22.2014 80.446 13.3032C71.5436 4.40504 59.6972 -0.370316 47.5 0.0224457C35.3028 -0.370316 23.4564 4.40504 14.554 13.3032C5.65166 22.2014 0.418472 34.4975 0 47.5C0.418472 60.5025 5.65166 72.7986 14.554 81.6968C23.4564 90.595 35.3028 95.3703 47.5 94.9776ZM47.5 7.93537C57.7293 7.54133 67.6886 11.4827 75.1994 18.8972C82.7101 26.3117 87.1609 36.5959 87.5781 47.5C87.1609 58.4041 82.7101 68.6883 75.1994 76.1028C67.6886 83.5174 57.7293 87.4587 47.5 87.0646C37.2707 87.4587 27.3114 83.5174 19.8006 76.1028C12.2899 68.6883 7.83908 58.4041 7.42188 47.5C7.83908 36.5959 12.2899 26.3117 19.8006 18.8972C27.3114 11.4827 37.2707 7.54133 47.5 7.93537Z"
+          fill="#EFBD8E" />
+      </svg>
+
+    </div>
+
+    <!-- Titre du modal -->
+    <h3 class="text-center text-lg font-semibold mb-2" *ngIf="modalAction === 'deactivate'">
+      Désactiver le plan
+    </h3>
+    <h3 class="text-center text-lg font-semibold mb-2" *ngIf="modalAction === 'activate'">
+      Activer le plan
+    </h3>
+
+    <!-- Message de confirmation -->
+    <p class="text-center text-gray-600 mb-6" *ngIf="modalAction === 'deactivate'">
+      Êtes-vous sûr de vouloir <strong>désactiver</strong> le plan
+      <strong>{{ selectedPlanForAction?.label }}</strong> ?
+      <br><br>
+      Cette action est irréversible et il ne sera plus visible pour les utilisateurs.
+    </p>
+    <p class="text-center text-gray-600 mb-6" *ngIf="modalAction === 'activate'">
+      Êtes-vous sûr de vouloir <strong>activer</strong> le plan
+      <strong>{{ selectedPlanForAction?.label }}</strong> ?
+      <br><br>
+      Cette action est irréversible et il sera visible pour les utilisateurs.
+    </p>
+    <!-- Boutons d'action -->
+    <div class="flex gap-3">
+      <!-- Bouton Désactiver/Activer -->
+      <button (click)="confirmToggleAction()" [disabled]="isLoading"
+        [class]="modalAction === 'deactivate' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-900 hover:bg-blue-800'"
+        class="flex-1 text-white font-medium py-2.5 px-4 rounded-md transition-colors disabled:opacity-50">
+        {{ modalAction === 'deactivate' ? 'Désactiver' : 'Activer' }}
+      </button>
+
+      <!-- Bouton Annuler -->
+      <button (click)="cancelToggleAction()" [disabled]="isLoading"
+        class="flex-1 bg-white border border-gray-300 text-gray-700 font-medium py-2.5 px-4 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50">
+        Annuler
+      </button>
+    </div>

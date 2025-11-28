@@ -19,15 +19,24 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
   totalPages: number = 0;
   totalResults: number = 0;
   
-  Math = Math; // ✅ Correction : rendre Math accessible dans le template
+  Math = Math;
   
   profilsToLoad = ['PROMOTEUR', 'MOA', 'BET', 'NOTAIRE', 'RESERVATAIRE', 'BANK', 
                    'AGENCY', 'ADMIN', 'PROPRIETAIRE', 'SYNDIC', 'LOCATAIRE', 
                    'PRESTATAIRE', 'TOM', 'SITE_MANAGER', 'SUPPLIER', 'SUBCONTRACTOR', 
                    'WORKER'];
 
+  // Modals existants
   showCreateModal: boolean = false;
   showEditModal: boolean = false;
+  
+  // 🆕 Nouveaux modals pour bloquer/débloquer
+  showBlockModal: boolean = false;
+  showNotification: boolean = false;
+  modalAction: 'block' | 'activate' = 'block';
+  notificationType: 'blocked' | 'activated' = 'blocked';
+  selectedUserForAction: User | null = null;
+  
   isLoading: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
@@ -56,7 +65,7 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
 
   utilisateurs: User[] = [];
   filteredUtilisateurs: User[] = [];
-  paginatedUtilisateurs: User[] = []; // ✅ Nouveau tableau pour la pagination
+  paginatedUtilisateurs: User[] = [];
 
   private destroy$ = new Subject<void>();
 
@@ -75,9 +84,6 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  /**
-   * Charge tous les utilisateurs de tous les profils
-   */
   loadAllUsers(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -117,9 +123,6 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Recherche des utilisateurs
-   */
   searchUtilisateurs(): void {
     console.log('🔍 Recherche:', this.searchTerm);
     
@@ -141,13 +144,9 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
     this.applyPagination();
   }
 
-  /**
-   * ✅ Correction : Applique la pagination correctement
-   */
   applyPagination(): void {
     const start = this.currentPage * this.pageSize;
     const end = start + this.pageSize;
-    // ✅ Utiliser un nouveau tableau pour la pagination
     this.paginatedUtilisateurs = this.filteredUtilisateurs.slice(start, end);
     console.log('📄 Pagination:', {
       page: this.currentPage,
@@ -260,34 +259,21 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
     };
   }
 
-  /**
-   * ✅ Correction : Conversion du format de date
-   */
   private convertDateFormat(dateString: string): string {
     if (!dateString) return '';
-    
-    // Si la date est au format YYYY-MM-DD (HTML input date)
     const [year, month, day] = dateString.split('-');
-    
-    // Convertir en DD-MM-YYYY pour le backend
     const formattedDate = `${day}-${month}-${year}`;
-    
     console.log('📅 Conversion date:', {
       original: dateString,
       formatted: formattedDate
     });
-    
     return formattedDate;
   }
 
-  /**
-   * ✅ Correction : Validation et conversion des données
-   */
   saveNewUser(): void {
     this.errorMessage = '';
     this.successMessage = '';
 
-    // Validation des champs requis
     if (!this.createUserForm.prenom || !this.createUserForm.nom || 
         !this.createUserForm.email || !this.createUserForm.password || 
         !this.createUserForm.telephone || !this.createUserForm.profil) {
@@ -295,14 +281,12 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Validation email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(this.createUserForm.email)) {
       this.errorMessage = 'Format d\'email invalide';
       return;
     }
 
-    // Validation téléphone (minimum 8 chiffres)
     const phoneRegex = /^\d{8,}$/;
     const cleanPhone = this.createUserForm.telephone.replace(/\s/g, '');
     if (!phoneRegex.test(cleanPhone)) {
@@ -312,11 +296,9 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
 
     this.isLoading = true;
 
-    // ✅ Conversion de la date au bon format DD-MM-YYYY
     const formattedDate = this.createUserForm.date ? 
       this.convertDateFormat(this.createUserForm.date) : '';
 
-    // ✅ Construction de l'objet exactement comme dans Swagger
     const createData = {
       nom: this.createUserForm.nom.trim(),
       prenom: this.createUserForm.prenom.trim(),
@@ -331,9 +313,8 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
 
     console.log('📤 Données envoyées (format exact):', {
       ...createData,
-      password: '***' // Masquer le mot de passe
+      password: '***'
     });
-    console.log('📤 JSON stringifié:', JSON.stringify(createData, null, 2));
 
     this.userService.createUser(createData)
       .pipe(takeUntil(this.destroy$))
@@ -350,13 +331,7 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           console.error('❌ Erreur création complète:', error);
-          console.error('❌ Error status:', error.status);
-          console.error('❌ Error message:', error.message);
-          if (error.error) {
-            console.error('❌ Error details:', error.error);
-          }
           
-          // Message plus détaillé pour l'utilisateur
           let userMsg = 'Erreur lors de la création';
           if (error.status === 400) {
             userMsg = 'Données invalides. Vérifiez tous les champs.';
@@ -374,7 +349,6 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     this.successMessage = '';
 
-    // Validation des champs requis
     if (!this.editUserForm.prenom || !this.editUserForm.nom || 
         !this.editUserForm.email || !this.editUserForm.telephone || 
         !this.editUserForm.profil) {
@@ -422,11 +396,77 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
     this.openEditModal(user);
   }
 
+  // 🆕 NOUVELLES MÉTHODES POUR BLOQUER/DÉBLOQUER
   toggleUserStatus(user: User): void {
-    console.log('🔄 Basculer statut utilisateur:', user);
-    // TODO: Implémenter la logique de suspension/activation
+    console.log('🔄 Toggle statut utilisateur:', user);
+    this.selectedUserForAction = user;
+    this.modalAction = this.getUserStatus(user) === 'Actif' ? 'block' : 'activate';
+    this.showBlockModal = true;
   }
 
+  confirmBlockAction(): void {
+    if (!this.selectedUserForAction) return;
+
+    this.isLoading = true;
+    
+    // TODO: Remplacez cette simulation par votre vraie méthode service
+    // Exemple: this.userService.toggleUserStatus(this.selectedUserForAction.id)
+    //   .pipe(takeUntil(this.destroy$))
+    //   .subscribe({
+    //     next: (response) => {
+    //       this.handleBlockSuccess();
+    //     },
+    //     error: (error) => {
+    //       this.handleBlockError(error);
+    //     }
+    //   });
+    
+    // Simulation pour l'instant
+    setTimeout(() => {
+      this.notificationType = this.modalAction === 'block' ? 'blocked' : 'activated';
+      this.showBlockModal = false;
+      this.showNotification = true;
+      this.isLoading = false;
+
+      // Recharger les utilisateurs
+      this.loadAllUsers();
+
+      // Masquer la notification après 3 secondes
+      setTimeout(() => {
+        this.showNotification = false;
+        this.selectedUserForAction = null;
+      }, 3000);
+    }, 500);
+  }
+
+  cancelBlockAction(): void {
+    this.showBlockModal = false;
+    this.selectedUserForAction = null;
+  }
+
+  // Méthodes utilitaires pour gérer le succès/erreur (à utiliser avec votre vrai service)
+  private handleBlockSuccess(): void {
+    this.notificationType = this.modalAction === 'block' ? 'blocked' : 'activated';
+    this.showBlockModal = false;
+    this.showNotification = true;
+    this.isLoading = false;
+    
+    this.loadAllUsers();
+    
+    setTimeout(() => {
+      this.showNotification = false;
+      this.selectedUserForAction = null;
+    }, 3000);
+  }
+
+  private handleBlockError(error: any): void {
+    console.error('❌ Erreur lors du changement de statut:', error);
+    this.errorMessage = error.userMessage || 'Erreur lors du changement de statut';
+    this.showBlockModal = false;
+    this.isLoading = false;
+  }
+
+  // Méthodes de pagination
   goToPage(page: number): void {
     this.currentPage = page;
     this.applyPagination();

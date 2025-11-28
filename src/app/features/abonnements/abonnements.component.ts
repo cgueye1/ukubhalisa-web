@@ -32,10 +32,18 @@ export class AbonnementsComponent implements OnInit, OnDestroy {
   pageSize: number = 10;
   totalResults: number = 0;
 
-  // Modal de confirmation
+  // Modal de confirmation de suppression
   showDeleteModal = false;
   planToDelete: SubscriptionPlan | null = null;
-Math: any;
+
+  // 🆕 Modal et notification pour activer/désactiver
+  showToggleModal = false;
+  showNotification = false;
+  modalAction: 'activate' | 'deactivate' = 'deactivate';
+  notificationType: 'activated' | 'deactivated' = 'deactivated';
+  selectedPlanForAction: SubscriptionPlan | null = null;
+
+  Math = Math;
 
   constructor(
     private planService: PlanAbonnementService,
@@ -53,9 +61,6 @@ Math: any;
     this.destroy$.complete();
   }
 
-  /**
-   * Charge tous les plans d'abonnement
-   */
   loadPlans(): void {
     this.isLoading = true;
     
@@ -65,7 +70,6 @@ Math: any;
         next: (subscriptions) => {
           console.log('✅ Abonnements chargés:', subscriptions);
           
-          // Extraire les plans uniques des abonnements
           const planMap = new Map<number, SubscriptionPlan>();
           subscriptions.forEach(sub => {
             if (sub.subscriptionPlan && !planMap.has(sub.subscriptionPlan.id)) {
@@ -83,16 +87,11 @@ Math: any;
         error: (error) => {
           console.error('❌ Erreur lors du chargement des plans:', error);
           this.isLoading = false;
-          
-          // Optionnel: Afficher un message d'erreur à l'utilisateur
           alert(error.userMessage || 'Erreur lors du chargement des plans');
         }
       });
   }
 
-  /**
-   * Recherche dans les plans
-   */
   searchPlans(): void {
     if (this.searchTerm.trim() === '') {
       this.filteredPlans = [...this.allPlans];
@@ -102,7 +101,6 @@ Math: any;
 
     const term = this.searchTerm.toLowerCase().trim();
     
-    // Recherche locale
     this.filteredPlans = this.allPlans.filter(plan =>
       plan.name.toLowerCase().includes(term) ||
       plan.label.toLowerCase().includes(term) ||
@@ -115,16 +113,10 @@ Math: any;
     console.log(`🔍 Recherche: "${term}" - ${this.totalResults} résultats`);
   }
 
-  /**
-   * Navigue vers la page de création de plan
-   */
   createPlan(): void {
     this.router.navigate(['/create-plan']);
   }
 
-  /**
-   * Voir les détails d'un plan
-   */
   viewPlan(plan: SubscriptionPlan): void {
     console.log('👁️ Voir plan:', plan);
     this.router.navigate(['/details-abonnement', plan.id], {
@@ -132,9 +124,6 @@ Math: any;
     });
   }
 
-  /**
-   * Modifier un plan
-   */
   editPlan(plan: SubscriptionPlan): void {
     console.log('✏️ Modifier plan:', plan);
     this.router.navigate(['/create-plan', plan.id], {
@@ -142,52 +131,66 @@ Math: any;
     });
   }
 
-  /**
-   * Activer/Désactiver un plan
-   */
+  // 🆕 NOUVELLE MÉTHODE : Ouvre le modal de confirmation
   togglePlanStatus(plan: SubscriptionPlan): void {
-    console.log('🔄 Basculer statut plan:', plan);
-    
-    const newStatus = !plan.active;
-    const action = newStatus ? 'activer' : 'désactiver';
-    
-    if (!confirm(`Voulez-vous vraiment ${action} le plan "${plan.label}" ?`)) {
-      return;
-    }
+    console.log('🔄 Toggle statut plan:', plan);
+    this.selectedPlanForAction = plan;
+    this.modalAction = plan.active ? 'deactivate' : 'activate';
+    this.showToggleModal = true;
+  }
 
-    this.planService.putPlanAbonnement(plan.id, { active: newStatus })
+  // 🆕 NOUVELLE MÉTHODE : Confirme l'activation/désactivation
+  confirmToggleAction(): void {
+    if (!this.selectedPlanForAction) return;
+
+    this.isLoading = true;
+    const newStatus = !this.selectedPlanForAction.active;
+
+    this.planService.putPlanAbonnement(this.selectedPlanForAction.id, { active: newStatus })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (updatedPlan) => {
           console.log('✅ Statut du plan mis à jour:', updatedPlan);
           
           // Mettre à jour le plan dans la liste
-          const index = this.allPlans.findIndex(p => p.id === plan.id);
+          const index = this.allPlans.findIndex(p => p.id === this.selectedPlanForAction!.id);
           if (index !== -1) {
             this.allPlans[index] = updatedPlan;
-            this.searchPlans(); // Rafraîchir la liste filtrée
+            this.searchPlans();
           }
           
-          alert(`Plan ${action} avec succès`);
+          // Afficher la notification
+          this.notificationType = newStatus ? 'activated' : 'deactivated';
+          this.showToggleModal = false;
+          this.showNotification = true;
+          this.isLoading = false;
+
+          // Masquer la notification après 3 secondes
+          setTimeout(() => {
+            this.showNotification = false;
+            this.selectedPlanForAction = null;
+          }, 3000);
         },
         error: (error) => {
           console.error('❌ Erreur lors de la mise à jour du statut:', error);
-          alert(error.userMessage || `Erreur lors de la modification du statut`);
+          this.showToggleModal = false;
+          this.isLoading = false;
+          alert(error.userMessage || 'Erreur lors de la modification du statut');
         }
       });
   }
 
-  /**
-   * Ouvre la modal de confirmation de suppression
-   */
+  // 🆕 NOUVELLE MÉTHODE : Annule l'action
+  cancelToggleAction(): void {
+    this.showToggleModal = false;
+    this.selectedPlanForAction = null;
+  }
+
   confirmDelete(plan: SubscriptionPlan): void {
     this.planToDelete = plan;
     this.showDeleteModal = true;
   }
 
-  /**
-   * Supprime un plan
-   */
   deletePlan(): void {
     if (!this.planToDelete) return;
 
@@ -201,9 +204,8 @@ Math: any;
         next: () => {
           console.log('✅ Plan supprimé:', planId);
           
-          // Retirer le plan de la liste
           this.allPlans = this.allPlans.filter(p => p.id !== planId);
-          this.searchPlans(); // Rafraîchir la liste filtrée
+          this.searchPlans();
           
           this.isDeleting = false;
           this.showDeleteModal = false;
@@ -219,45 +221,27 @@ Math: any;
       });
   }
 
-  /**
-   * Annule la suppression
-   */
   cancelDelete(): void {
     this.showDeleteModal = false;
     this.planToDelete = null;
   }
 
-  /**
-   * Formate le montant
-   */
   formatAmount(amount: number): string {
     return `${amount.toLocaleString('fr-FR')} F CFA`;
   }
 
-  /**
-   * Retourne la classe CSS pour le statut
-   */
   getStatutClass(active: boolean): string {
     return active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
   }
 
-  /**
-   * Retourne le texte du statut
-   */
   getStatutText(active: boolean): string {
     return active ? 'Actif' : 'Inactif';
   }
 
-  /**
-   * Retourne la limite de projets formatée
-   */
   getProjectLimit(plan: SubscriptionPlan): string {
     return plan.unlimitedProjects ? 'Illimité' : plan.projectLimit.toString();
   }
 
-  /**
-   * Pagination
-   */
   get paginatedPlans(): SubscriptionPlan[] {
     const start = (this.currentPage - 1) * this.pageSize;
     const end = start + this.pageSize;
@@ -286,12 +270,8 @@ Math: any;
     }
   }
 
-  /**
-   * Exporte les plans (à implémenter selon vos besoins)
-   */
   exportPlans(): void {
     console.log('📤 Export des plans...');
-    // TODO: Implémenter l'export (CSV, Excel, etc.)
     alert('Fonctionnalité d\'export à venir');
   }
 }
