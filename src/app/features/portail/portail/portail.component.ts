@@ -1,8 +1,10 @@
 // portail.component.ts
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { trigger, state, style, transition, animate } from '@angular/animations';
+import { PlanAbonnementService, SubscriptionPlan } from '../../../../services/plan-abonnement.service';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-portail',
@@ -40,9 +42,16 @@ import { trigger, state, style, transition, animate } from '@angular/animations'
     ])
   ]
 })
-export class PortailComponent {
+export class PortailComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  
   isScrolled = false;
   mobileMenuOpen = false;
+  isLoadingPlans = true;
+
+  // Plans d'abonnement
+  premiumPlan: SubscriptionPlan | null = null;
+  basicPlan: SubscriptionPlan | null = null;
 
   features = [
     {
@@ -84,9 +93,59 @@ export class PortailComponent {
     { title: 'Équipes', initial: 'E', description: 'Personnel terrain' }
   ];
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private planService: PlanAbonnementService
+  ) {}
 
-  // Méthode pour naviguer vers la page login
+  ngOnInit(): void {
+    console.log('🚀 PortailComponent initialisé');
+    this.loadPlans();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  /**
+   * Charge les plans d'abonnement PROMOTEUR
+   */
+  loadPlans(): void {
+    this.isLoadingPlans = true;
+    
+    this.planService.getPlansByName('PROMOTEUR')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (plans) => {
+          console.log('✅ Plans PROMOTEUR chargés:', plans);
+          
+          // Trouver les plans PREMIUM et BASIC
+          this.premiumPlan = plans.find(p => p.label === 'PREMIUM') || null;
+          this.basicPlan = plans.find(p => p.label === 'BASIC') || null;
+          
+          this.isLoadingPlans = false;
+          
+          console.log('📊 Plan PREMIUM:', this.premiumPlan);
+          console.log('📊 Plan BASIC:', this.basicPlan);
+        },
+        error: (error) => {
+          console.error('❌ Erreur lors du chargement des plans:', error);
+          this.isLoadingPlans = false;
+        }
+      });
+  }
+
+  /**
+   * Formatte le montant en FCFA
+   */
+  formatAmount(amount: number): string {
+    return `${amount.toLocaleString('fr-FR')} FCFA`;
+  }
+
+  /**
+   * Méthode pour naviguer vers la page login
+   */
   goToLogin(): void {
     this.router.navigate(['/login']);
   }
@@ -117,6 +176,4 @@ export class PortailComponent {
       this.mobileMenuOpen = false;
     }
   }
-  
 }
-  
