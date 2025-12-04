@@ -61,54 +61,28 @@ export class AbonnementsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  loadPlans(): void {
-    this.isLoading = true;
-    
-    this.planService.getAbonnements()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (subscriptions) => {
-          console.log('✅ Abonnements chargés:', subscriptions);
-          
-          const planMap = new Map<number, SubscriptionPlan>();
-          subscriptions.forEach(sub => {
-            if (sub.subscriptionPlan && !planMap.has(sub.subscriptionPlan.id)) {
-              planMap.set(sub.subscriptionPlan.id, sub.subscriptionPlan);
-            }
-          });
-          
-          this.allPlans = Array.from(planMap.values());
-          this.filteredPlans = [...this.allPlans];
-          this.totalResults = this.allPlans.length;
-          this.isLoading = false;
-
-          console.log('📊 Plans extraits:', this.allPlans.length);
-        },
-        error: (error) => {
-          console.error('❌ Erreur lors du chargement des plans:', error);
-          this.isLoading = false;
-          alert(error.userMessage || 'Erreur lors du chargement des plans');
-        }
-      });
-  }
   // loadPlans(): void {
   //   this.isLoading = true;
     
-  //   // Charger les plans d'un type spécifique (ex: 'PREMIUM')
-  //   const planName = 'PROMOTEUR'; // Changez selon vos besoins
-    
-  //   this.planService.getPlansByName(planName)
+  //   this.planService.getAbonnements()
   //     .pipe(takeUntil(this.destroy$))
   //     .subscribe({
-  //       next: (plans) => {
-  //         console.log('✅ Plans par nom chargés:', plans);
+  //       next: (subscriptions) => {
+  //         console.log('✅ Abonnements chargés:', subscriptions);
           
-  //         this.allPlans = plans;
+  //         const planMap = new Map<number, SubscriptionPlan>();
+  //         subscriptions.forEach(sub => {
+  //           if (sub.subscriptionPlan && !planMap.has(sub.subscriptionPlan.id)) {
+  //             planMap.set(sub.subscriptionPlan.id, sub.subscriptionPlan);
+  //           }
+  //         });
+          
+  //         this.allPlans = Array.from(planMap.values());
   //         this.filteredPlans = [...this.allPlans];
   //         this.totalResults = this.allPlans.length;
   //         this.isLoading = false;
-  
-  //         console.log('📊 Plans chargés:', this.allPlans.length);
+
+  //         console.log('📊 Plans extraits:', this.allPlans.length);
   //       },
   //       error: (error) => {
   //         console.error('❌ Erreur lors du chargement des plans:', error);
@@ -117,6 +91,33 @@ export class AbonnementsComponent implements OnInit, OnDestroy {
   //       }
   //     });
   // }
+
+  loadPlans(): void {
+    this.isLoading = true;
+    
+    // Charger les plans d'un type spécifique (ex: 'PREMIUM')
+    const planName = 'PROMOTEUR'; // Changez selon vos besoins
+    
+    this.planService.getPlansByName(planName)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (plans) => {
+          console.log('✅ Plans par nom chargés:', plans);
+          
+          this.allPlans = plans;
+          this.filteredPlans = [...this.allPlans];
+          this.totalResults = this.allPlans.length;
+          this.isLoading = false;
+  
+          console.log('📊 Plans chargés:', this.allPlans.length);
+        },
+        error: (error) => {
+          console.error('❌ Erreur lors du chargement des plans:', error);
+          this.isLoading = false;
+          alert(error.userMessage || 'Erreur lors du chargement des plans');
+        }
+      });
+  }
   searchPlans(): void {
     if (this.searchTerm.trim() === '') {
       this.filteredPlans = [...this.allPlans];

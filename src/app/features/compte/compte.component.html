@@ -47,29 +47,32 @@
             <!-- Contenu principal (droite) -->
             <div class="lg:col-span-8">
                 <div class="bg-white rounded-lg shadow-sm">
-                    <!-- Onglets -->
-                    <div class="border-b border-gray-200 px-8 pt-6">
-                        <nav class="flex space-x-8" aria-label="Tabs">
-                            <button type="button" (click)="setActiveTab('informations')" [class]="activeTab() === 'informations' 
-                    ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                                class="py-4 px-1 border-b-2 text-sm transition-colors">
-                                Informations personnelles
-                            </button>
-                            <button type="button" (click)="setActiveTab('abonnements')" [class]="activeTab() === 'abonnements' 
-                    ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                                class="py-4 px-1 border-b-2 text-sm transition-colors">
-                                Abonnements
-                            </button>
-                            <button type="button" (click)="setActiveTab('factures')" [class]="activeTab() === 'factures' 
-                    ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-                                class="py-4 px-1 border-b-2 text-sm transition-colors">
-                                Factures
-                            </button>
-                        </nav>
-                    </div>
+                 <!-- Onglets -->
+<div class="border-b border-gray-200 px-8 pt-6">
+    <nav class="flex space-x-8" aria-label="Tabs">
+        <button type="button" (click)="setActiveTab('informations')" [class]="activeTab() === 'informations' 
+            ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="py-4 px-1 border-b-2 text-sm transition-colors">
+            Informations personnelles
+        </button>
+        
+        @if (!isAdmin()) {
+        <button type="button" (click)="setActiveTab('abonnements')" [class]="activeTab() === 'abonnements' 
+            ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="py-4 px-1 border-b-2 text-sm transition-colors">
+            Abonnements
+        </button>
+        <button type="button" (click)="setActiveTab('factures')" [class]="activeTab() === 'factures' 
+            ? 'border-[#ff5c01] text-[#ff5c01] font-medium' 
+            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+            class="py-4 px-1 border-b-2 text-sm transition-colors">
+            Factures
+        </button>
+        }
+    </nav>
+</div>
 
                     <!-- Contenu de l'onglet -->
                     <div class="p-8">

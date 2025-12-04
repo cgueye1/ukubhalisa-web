@@ -126,14 +126,28 @@ export class PortailComponent implements OnInit, OnDestroy {
           
           this.isLoadingPlans = false;
           
-          console.log('📊 Plan PREMIUM:', this.premiumPlan);
-          console.log('📊 Plan BASIC:', this.basicPlan);
         },
         error: (error) => {
           console.error('❌ Erreur lors du chargement des plans:', error);
           this.isLoadingPlans = false;
         }
       });
+  }
+
+  /**
+   * Tronque la description à 2 lignes maximum
+   * Prend les 2 premières lignes de la description
+   */
+  truncateDescription(description: string): string {
+    if (!description) return '';
+    
+    // Diviser la description par les sauts de ligne
+    const lines = description.split('\n').filter(line => line.trim() !== '');
+    
+    // Prendre seulement les 2 premières lignes
+    const truncated = lines.slice(0, 2).join('\n');
+    
+    return truncated;
   }
 
   /**

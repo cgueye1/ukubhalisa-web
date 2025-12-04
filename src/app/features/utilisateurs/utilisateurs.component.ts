@@ -30,7 +30,7 @@ export class UtilisateursComponent implements OnInit, OnDestroy {
   showCreateModal: boolean = false;
   showEditModal: boolean = false;
   
-  // 🆕 Nouveaux modals pour bloquer/débloquer
+  // Nouveaux modals pour bloquer/débloquer
   showBlockModal: boolean = false;
   showNotification: boolean = false;
   modalAction: 'block' | 'activate' = 'block';

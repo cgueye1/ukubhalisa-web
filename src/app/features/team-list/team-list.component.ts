@@ -12,7 +12,8 @@ interface TeamMember {
   id: number;
   name: string;
   role: string;
-  phone: string;
+  telephone: string;
+  present: boolean;
   address: string;
   email: string;
   avatar: string;
@@ -52,7 +53,7 @@ export class TeamListComponent implements OnInit {
 
   // Variables pour le popup d'ajout
   showAddMemberModal = false;
-  newMember: any = {
+  newMember: CreateWorkerRequest = {
     nom: '',
     prenom: '',
     email: '',
@@ -79,6 +80,9 @@ export class TeamListComponent implements OnInit {
   currentDate = new Date();
   calendarDays: Array<{day: number, isCurrentMonth: boolean, isToday: boolean, isSelected: boolean, date: Date}> = [];
   currentMonthYear = '';
+
+  currentMonth: number = new Date().getMonth();
+  currentYear: number = new Date().getFullYear();
 
   constructor(
     private utilisateurService: UtilisateurService,
@@ -119,10 +123,10 @@ export class TeamListComponent implements OnInit {
         this.totalPages = response.totalPages;
         this.totalElements = response.totalElements;
         this.isLoading = false;
-        console.log(response.content);
+        console.log('Workers chargés:', response.content);
       },
       error: (error) => {
-        console.error('Erreur lors du chargement des utilisateurs:', error);
+        console.error('Erreur lors du chargement des workers:', error);
         this.error = 'Erreur lors du chargement des membres de l\'équipe';
         this.isLoading = false;
       }
@@ -134,7 +138,8 @@ export class TeamListComponent implements OnInit {
       id: worker.id,
       name: `${worker.prenom} ${worker.nom}`,
       role: this.mapRole(worker.profil),
-      phone: worker.telephone,
+      telephone: worker.telephone,
+      present: worker.present,
       address: worker.adress,
       email: worker.email,
       avatar: worker.photo || this.getDefaultAvatar(),
@@ -164,6 +169,18 @@ export class TeamListComponent implements OnInit {
     return defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
   }
 
+  // Méthode pour convertir boolean en Oui/Non
+  getPresentText(present: boolean): string {
+    return present ? 'Oui' : 'Non';
+  }
+
+  // Méthode pour obtenir la classe CSS selon le statut de présence
+  getPresentClass(present: boolean): string {
+    return present 
+      ? 'inline-block px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full'
+      : 'inline-block px-3 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full';
+  }
+
   viewMember(member: TeamMember): void {
     this.selectedMember = { ...member };
     this.showViewModal = true;
@@ -171,7 +188,6 @@ export class TeamListComponent implements OnInit {
     this.detailsError = null;
     document.body.style.overflow = 'hidden';
 
-    // Créer des observables avec gestion d'erreur pour chaque appel
     const performance$ = this.detailsWorkerService.getPerformanceAndTask(member.id).pipe(
       catchError(error => {
         console.warn('Erreur lors du chargement des performances:', error);
@@ -203,7 +219,6 @@ export class TeamListComponent implements OnInit {
       })
     );
 
-    // ✅ AJOUT: Observable pour la répartition des tâches
     const repartitions$ = this.detailsWorkerService.getRepartitions(member.id).pipe(
       catchError(error => {
         console.warn('Erreur lors du chargement de la répartition des tâches:', error);
@@ -211,26 +226,20 @@ export class TeamListComponent implements OnInit {
       })
     );
 
-    // Charger les détails du worker via les APIs avec gestion d'erreur individuelle
     forkJoin({
       performance: performance$,
       presence: presence$,
       dashboard: dashboard$,
-      repartitions: repartitions$ // ✅ AJOUT
+      repartitions: repartitions$
     }).subscribe({
       next: (results) => {
         if (this.selectedMember) {
-          // Mettre à jour les statistiques
           this.selectedMember.tasksCompleted = results.performance.completedTasks;
           this.selectedMember.performance = Math.round(results.performance.performancePercentage);
           this.selectedMember.daysPresent = results.dashboard.daysPresent;
           this.selectedMember.hoursWorked = Math.round(results.dashboard.totalWorkedHours);
-
-          // Transformer l'historique de présence
           this.selectedMember.presenceHistory = this.transformPresenceHistory(results.presence);
           this.selectedMember.totalWorkedTime = results.presence.totalWorkedTime;
-
-          // ✅ TRANSFORMATION: Convertir la répartition API en format pour le graphique
           this.selectedMember.taskDistribution = this.transformTaskDistribution(results.repartitions);
         }
         this.isLoadingDetails = false;
@@ -243,7 +252,6 @@ export class TeamListComponent implements OnInit {
     });
   }
 
-  // ✅ NOUVELLE MÉTHODE: Transformation de la répartition des tâches
   private transformTaskDistribution(distributions: StatusDistribution[]): { [key: string]: number } {
     const taskDistribution: { [key: string]: number } = {
       'À Faire': 0,
@@ -256,7 +264,6 @@ export class TeamListComponent implements OnInit {
       return taskDistribution;
     }
 
-    // Mapping des statuts API vers les labels affichés
     const statusMap: { [key: string]: string } = {
       'TODO': 'À Faire',
       'A_FAIRE': 'À Faire',
@@ -273,21 +280,20 @@ export class TeamListComponent implements OnInit {
     distributions.forEach(dist => {
       const mappedStatus = statusMap[dist.status.toUpperCase()];
       if (mappedStatus) {
-        taskDistribution[mappedStatus] = Math.round(dist.percentage * 10) / 10; // Arrondi à 1 décimale
+        taskDistribution[mappedStatus] = Math.round(dist.percentage * 10) / 10;
       }
     });
 
     return taskDistribution;
   }
 
-  // ✅ MÉTHODES UTILITAIRES pour le graphique circulaire
   getTaskDistributionTotal(): number {
     if (!this.selectedMember?.taskDistribution) return 0;
     return Object.values(this.selectedMember.taskDistribution).reduce((sum, val) => sum + val, 0);
   }
 
   calculateStrokeDasharray(percentage: number): string {
-    const circumference = 440; // 2 * PI * 70 (rayon)
+    const circumference = 440;
     const value = (percentage / 100) * circumference;
     return `${value} ${circumference}`;
   }
@@ -297,7 +303,6 @@ export class TeamListComponent implements OnInit {
     return -(startPercentage / 100) * circumference;
   }
 
-  // Calcul des offsets cumulés pour le graphique circulaire
   getTaskOffsets(): { [key: string]: number } {
     if (!this.selectedMember?.taskDistribution) return {};
     
@@ -332,7 +337,6 @@ export class TeamListComponent implements OnInit {
       return [];
     }
 
-    // Regrouper les logs par date
     const groupedByDate = new Map<string, Array<{ entry: string; exit: string }>>();
 
     presenceData.logs.forEach(log => {
@@ -350,7 +354,6 @@ export class TeamListComponent implements OnInit {
       });
     });
 
-    // Convertir en tableau avec calcul du temps total par jour
     const result: Array<{
       date: string;
       sessions: Array<{ entry: string; exit: string }>;
@@ -369,7 +372,6 @@ export class TeamListComponent implements OnInit {
       });
     });
 
-    // Trier par date décroissante
     result.sort((a, b) => {
       const dateA = this.parseDateString(a.date);
       const dateB = this.parseDateString(b.date);
@@ -439,23 +441,25 @@ export class TeamListComponent implements OnInit {
     if (event.target === event.currentTarget) this.closeViewModal();
   }
 
-  // Filtrage de l'historique par date sélectionnée
   getFilteredPresenceHistory(): Array<{
     date: string;
     sessions: Array<{ entry: string; exit: string }>;
     totalTime: string;
   }> {
     if (!this.selectedMember?.presenceHistory) return [];
-    
+   
+    // Si aucune date n'est sélectionnée, afficher tout l'historique
     if (!this.selectedDate) {
       return this.selectedMember.presenceHistory;
     }
-
+ 
+    // Filtrer par la date sélectionnée
     const selectedDateStr = this.formatSelectedDate(this.selectedDate);
-    return this.selectedMember.presenceHistory.filter(item => 
+    return this.selectedMember.presenceHistory.filter(item =>
       item.date === selectedDateStr
     );
   }
+
 
   private formatSelectedDate(date: Date): string {
     const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -465,7 +469,6 @@ export class TeamListComponent implements OnInit {
     return `${days[date.getDay()]}. ${date.getDate()} ${months[date.getMonth()]}. ${date.getFullYear()}`;
   }
 
-  // Calcul du temps total travaillé
   getTotalWorkedTime(): string {
     if (!this.selectedMember?.presenceHistory) return '0h 00min';
     
@@ -479,7 +482,6 @@ export class TeamListComponent implements OnInit {
     return this.formatDuration(totalMinutes);
   }
 
-  // Méthodes du calendrier
   toggleDatePicker(): void {
     this.showDatePicker = !this.showDatePicker;
     if (this.showDatePicker) {
@@ -578,7 +580,6 @@ export class TeamListComponent implements OnInit {
     return classes.join(' ');
   }
 
-  // Méthodes de pagination
   goToPage(page: number): void {
     if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
       this.currentPage = page;
@@ -637,7 +638,6 @@ export class TeamListComponent implements OnInit {
     this.loadTeamMembers();
   }
 
-  // Méthodes pour l'ajout de membre
   openAddMemberModal(): void {
     this.showAddMemberModal = true;
     this.resetNewMemberForm();
@@ -713,6 +713,18 @@ export class TeamListComponent implements OnInit {
     return emailRegex.test(email);
   }
 
+  getEmptyDays(): number[] {
+    const firstDay = new Date(this.currentYear, this.currentMonth, 1).getDay();
+    // Ajuster pour que lundi soit le premier jour (0)
+    const adjusted = firstDay === 0 ? 6 : firstDay - 1;
+    return Array(adjusted).fill(0);
+  }
+ 
+  getCalendarDays(): number[] {
+    const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  }
+
   private formatDateForAPI(dateString: string): string {
     if (!dateString) return '';
     if (dateString.match(/^\d{2}-\d{2}-\d{4}$/)) return dateString;
@@ -726,11 +738,16 @@ export class TeamListComponent implements OnInit {
   submitAddMember(): void {
     if (!this.validateForm()) return;
 
+    if (this.currentPropertyId === null) {
+      this.submitError = 'ID de propriété non disponible';
+      return;
+    }
+  
     this.isSubmitting = true;
     this.submitError = null;
     this.submitSuccess = null;
-
-    const userData = {
+  
+    const userData: CreateWorkerRequest = {
       nom: this.newMember.nom.trim(),
       prenom: this.newMember.prenom.trim(),
       email: this.newMember.email.trim(),
@@ -741,22 +758,37 @@ export class TeamListComponent implements OnInit {
       adress: this.newMember.adress.trim(),
       profil: this.newMember.profil
     };
-
-    this.utilisateurService.createUser(userData).subscribe({
+  
+    console.log('📤 Création du worker pour propertyId:', this.currentPropertyId);
+    console.log('📤 Données du worker:', userData);
+  
+    this.utilisateurService.createWorker(userData, this.currentPropertyId).subscribe({
       next: (response) => {
+        console.log('✅ Worker créé avec succès:', response);
         this.isSubmitting = false;
         this.submitSuccess = 'Membre ajouté avec succès!';
+        
         setTimeout(() => {
           this.closeAddMemberModal();
+          this.currentPage = 1;
           this.loadTeamMembers();
         }, 1500);
       },
       error: (error) => {
         this.isSubmitting = false;
-        console.error('Erreur lors de la création du membre:', error);
-        if (error.status === 400) this.submitError = 'Données invalides. Vérifiez les informations saisies.';
-        else if (error.status === 409) this.submitError = 'Un utilisateur avec cet email existe déjà.';
-        else this.submitError = 'Erreur lors de l\'ajout du membre. Veuillez réessayer.';
+        console.error('❌ Erreur lors de la création du worker:', error);
+        
+        if (error.status === 400) {
+          this.submitError = 'Données invalides. Vérifiez les informations saisies.';
+        } else if (error.status === 409) {
+          this.submitError = 'Un utilisateur avec cet email existe déjà.';
+        } else if (error.status === 401) {
+          this.submitError = 'Session expirée. Veuillez vous reconnecter.';
+        } else if (error.status === 403) {
+          this.submitError = 'Vous n\'avez pas les permissions nécessaires.';
+        } else {
+          this.submitError = error.error?.message || 'Erreur lors de l\'ajout du membre. Veuillez réessayer.';
+        }
       }
     });
   }

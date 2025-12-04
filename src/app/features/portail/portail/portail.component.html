@@ -390,24 +390,6 @@
     </section>
 
 
-    <!-- CTA Section -->
-    <!-- <section class="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-orange-500">
-        <div class="max-w-4xl mx-auto text-center animate-fade-in-up">
-            <h2 class="text-4xl font-bold text-white mb-6">Prêt à transformer votre gestion de chantiers ?</h2>
-            <p class="text-xl text-white mb-8 opacity-90">Commencez votre essai gratuit dès aujourd'hui</p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button
-                    class="px-8 py-4 bg-white text-orange-500 rounded-lg hover:bg-gray-100 transition-all font-medium shadow-lg hover:shadow-xl hover:scale-105 transform duration-200">
-                    Essayer gratuitement
-                </button>
-                <button
-                    class="px-8 py-4 border-2 border-white text-white rounded-lg hover:bg-white hover:text-orange-500 transition-all font-medium">
-                    Nous contacter
-                </button>
-            </div>
-        </div>
-    </section> -->
-
     <section class="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div class="max-w-7xl mx-auto">
             <!-- Badge -->
@@ -465,10 +447,18 @@
                             </svg>
                             <span class="text-gray-700">Rapports PDF</span>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <span class="text-gray-700">Autres Rapports</span>
+                        </div>
                     </div>
     
                     <button (click)="goToLogin()"
-                        class="w-full py-3 px-6 border-2 border-orange-500 text-orange-500 rounded-lg font-medium hover:bg-orange-50 transition-colors">
+                        class="w-full py-3 px-6 border-2 border-orange-500 text-orange-500 mt-6 rounded-lg font-medium hover:bg-orange-50 transition-colors">
                         Commencer gratuitement
                     </button>
                 </div>
@@ -482,7 +472,7 @@
                     </div>
     
                     <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ premiumPlan.label }}</h3>
-                    <p class="text-gray-600 mb-6">{{ premiumPlan.description }}</p>
+                    <p class="text-gray-600 mb-6">{{ truncateDescription(premiumPlan.description) }}</p>
     
                     <div class="mb-8">
                         <span class="text-4xl font-bold text-gray-900">{{ formatAmount(premiumPlan.totalCost) }}</span>
@@ -542,7 +532,7 @@
                 <!-- Plan BASIC (Dynamique) -->
                 <div *ngIf="basicPlan" class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
                     <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ basicPlan.label }}</h3>
-                    <p class="text-gray-600 mb-6">{{ basicPlan.description }}</p>
+                    <p class="text-gray-600 mb-6">{{ truncateDescription(basicPlan.description) }}</p>
     
                     <div class="mb-8">
                         <span class="text-4xl font-bold text-gray-900">{{ formatAmount(basicPlan.totalCost) }}</span>

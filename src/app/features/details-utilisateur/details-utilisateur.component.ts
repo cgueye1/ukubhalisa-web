@@ -243,44 +243,6 @@ export class DetailsUtilisateurComponent implements OnInit, OnDestroy {
     this.successMessage = '';
   }
 
-  saveUser(): void {
-    if (!this.utilisateur) return;
-    
-    this.errorMessage = '';
-    this.successMessage = '';
-    this.isLoading = true;
-
-    const userData: Partial<User> = {
-      prenom: this.userForm.prenom,
-      nom: this.userForm.nom,
-      telephone: this.userForm.telephone,
-      email: this.userForm.email,
-      profil: this.userForm.profil,
-      adress: this.userForm.adress
-    };
-
-    console.log('💾 Sauvegarde des modifications:', userData);
-
-    this.userService.putUser(this.utilisateur.id, userData)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (updatedUser) => {
-          console.log('✅ Utilisateur mis à jour:', updatedUser);
-          this.successMessage = 'Utilisateur modifié avec succès';
-          this.utilisateur = updatedUser;
-          this.isLoading = false;
-          
-          setTimeout(() => {
-            this.closeEditModal();
-          }, 1500);
-        },
-        error: (error) => {
-          console.error('❌ Erreur modification:', error);
-          this.errorMessage = error.userMessage || 'Erreur lors de la modification';
-          this.isLoading = false;
-        }
-      });
-  }
 
   openSuspendModal(): void {
     this.showSuspendModal = true;
@@ -290,20 +252,7 @@ export class DetailsUtilisateurComponent implements OnInit, OnDestroy {
     this.showSuspendModal = false;
   }
 
-  confirmSuspension(): void {
-    if (!this.utilisateur) return;
-    
-    console.log('🔒 Suspension de l\'utilisateur:', this.utilisateur.id);
-    
-    // Implémenter la logique de suspension via l'API
-    // Pour l'instant, on simule juste
-    this.successMessage = 'Utilisateur suspendu avec succès';
-    
-    setTimeout(() => {
-      this.closeSuspendModal();
-      this.loadUserData();
-    }, 1500);
-  }
+
 
   openDeleteModal(): void {
     this.showDeleteModal = true;
@@ -313,33 +262,148 @@ export class DetailsUtilisateurComponent implements OnInit, OnDestroy {
     this.showDeleteModal = false;
   }
 
-  deleteUser(): void {
-    if (!this.utilisateur) return;
-    
-    this.isLoading = true;
-    this.errorMessage = '';
-    
-    console.log('🗑️ Suppression de l\'utilisateur:', this.utilisateur.id);
+/**
+ * Supprime l'utilisateur
+ */
+deleteUser(): void {
+  if (!this.utilisateur) return;
+  
+  this.isLoading = true;
+  this.errorMessage = '';
+  
+  console.log('🗑️ Suppression de l\'utilisateur:', this.utilisateur.id);
 
-    this.userService.deleteUser(this.utilisateur.id)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          console.log('✅ Utilisateur supprimé avec succès');
-          this.successMessage = 'Utilisateur supprimé avec succès';
-          
-          setTimeout(() => {
-            this.goBack();
-          }, 1500);
-        },
-        error: (error) => {
-          console.error('❌ Erreur suppression:', error);
-          this.errorMessage = error.userMessage || 'Erreur lors de la suppression';
-          this.isLoading = false;
-          this.closeDeleteModal();
-        }
-      });
+  this.userService.deleteUser(this.utilisateur.id)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: () => {
+        console.log('✅ Utilisateur supprimé avec succès');
+        this.successMessage = 'Utilisateur supprimé avec succès';
+        this.isLoading = false;
+        this.closeDeleteModal();
+        
+        // Redirection immédiate vers la liste
+        setTimeout(() => {
+          this.router.navigate(['/utilisateurs']);
+        }, 500);
+      },
+      error: (error) => {
+        console.error('❌ Erreur suppression:', error);
+        this.errorMessage = error.userMessage || 'Erreur lors de la suppression';
+        this.isLoading = false;
+        this.closeDeleteModal();
+      }
+    });
+}
+
+/**
+ * Sauvegarde les modifications de l'utilisateur
+ */
+saveUser(): void {
+  if (!this.utilisateur) return;
+  
+  // Validation des champs obligatoires
+  if (!this.userForm.prenom?.trim() || !this.userForm.nom?.trim() || 
+      !this.userForm.email?.trim() || !this.userForm.telephone?.trim() || 
+      !this.userForm.profil) {
+    this.errorMessage = 'Veuillez remplir tous les champs obligatoires (*)';
+    return;
   }
+
+  // Validation email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(this.userForm.email.trim())) {
+    this.errorMessage = 'Format d\'email invalide';
+    return;
+  }
+
+  // Validation téléphone
+  const phoneRegex = /^\d{8,}$/;
+  const cleanPhone = this.userForm.telephone.replace(/\s/g, '');
+  if (!phoneRegex.test(cleanPhone)) {
+    this.errorMessage = 'Le téléphone doit contenir au moins 8 chiffres';
+    return;
+  }
+  
+  this.errorMessage = '';
+  this.successMessage = '';
+  this.isLoading = true;
+
+  const userData: Partial<User> = {
+    prenom: this.userForm.prenom.trim(),
+    nom: this.userForm.nom.trim(),
+    telephone: cleanPhone,
+    email: this.userForm.email.trim().toLowerCase(),
+    profil: this.userForm.profil,
+    adress: this.userForm.adress?.trim() || ''
+  };
+
+  console.log('💾 Sauvegarde des modifications:', userData);
+
+  this.userService.putUser(this.utilisateur.id, userData)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (updatedUser) => {
+        console.log('✅ Utilisateur mis à jour:', updatedUser);
+        this.successMessage = 'Utilisateur modifié avec succès';
+        this.utilisateur = updatedUser;
+        this.isLoading = false;
+        
+        // Fermer le modal après 1.5 secondes
+        setTimeout(() => {
+          this.closeEditModal();
+          // Optionnel: recharger les données pour être sûr
+          this.loadUserData();
+        }, 1500);
+      },
+      error: (error) => {
+        console.error('❌ Erreur modification:', error);
+        
+        let userMsg = 'Erreur lors de la modification';
+        if (error.status === 400) {
+          userMsg = 'Données invalides. Vérifiez tous les champs.';
+        } else if (error.status === 409) {
+          userMsg = 'Un utilisateur avec cet email existe déjà.';
+        } else if (error.status === 404) {
+          userMsg = 'Utilisateur introuvable.';
+        }
+        
+        this.errorMessage = error.userMessage || userMsg;
+        this.isLoading = false;
+      }
+    });
+}
+
+/**
+ * Suspend ou active l'utilisateur
+ */
+confirmSuspension(): void {
+  if (!this.utilisateur) return;
+  
+  this.isLoading = true;
+  this.errorMessage = '';
+  
+  const currentStatus = this.getUserStatus();
+  const action = currentStatus === 'Actif' ? 'suspension' : 'activation';
+  
+  console.log(`🔒 ${action} de l'utilisateur:`, this.utilisateur.id);
+  
+  // TODO: Remplacez par votre vraie méthode API
+  // Exemple: this.userService.toggleUserStatus(this.utilisateur.id)
+  
+  // Simulation pour l'instant
+  setTimeout(() => {
+    this.successMessage = currentStatus === 'Actif' 
+      ? 'Utilisateur suspendu avec succès' 
+      : 'Utilisateur activé avec succès';
+    this.isLoading = false;
+    
+    setTimeout(() => {
+      this.closeSuspendModal();
+      this.loadUserData(); // Recharger pour voir les changements
+    }, 1500);
+  }, 500);
+}
 
   downloadFacture(paiement: Paiement): void {
     console.log('📄 Télécharger facture:', paiement.idFacture);
