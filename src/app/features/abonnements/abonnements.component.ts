@@ -96,9 +96,7 @@ export class AbonnementsComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     
     // Charger les plans d'un type spécifique (ex: 'PREMIUM')
-    const planName = 'PROMOTEUR'; // Changez selon vos besoins
-    
-    this.planService.getPlansByName(planName)
+    this.planService.getAllPlans()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (plans) => {

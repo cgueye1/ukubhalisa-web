@@ -269,154 +269,202 @@ Math: any;
     this.chartInstances = {};
   }
 
-  /**
+ /**
    * Crée ou met à jour le graphique d'évolution des abonnements
    */
-  updateAbonnementsChart(): void {
-    if (!this.abonnementsChart?.nativeElement) return;
+ updateAbonnementsChart(): void {
+  if (!this.abonnementsChart?.nativeElement) return;
 
-    const ctx = this.abonnementsChart.nativeElement.getContext('2d');
-    if (!ctx) return;
+  const ctx = this.abonnementsChart.nativeElement.getContext('2d');
+  if (!ctx) return;
 
-    // Détruire l'ancien graphique s'il existe
-    if (this.chartInstances['abonnements']) {
-      this.chartInstances['abonnements'].destroy();
-    }
+  // Détruire l'ancien graphique
+  if (this.chartInstances['abonnements']) {
+    this.chartInstances['abonnements'].destroy();
+  }
 
-    const labels = this.evolutionData.map(d => d.month);
-    const data = this.evolutionData.map(d => d.total);
+  // Map complet des mois → abréviations
+  const monthMap: Record<string, string> = {
+    "January": "Jan",
+    "February": "Fév",
+    "March": "Mar",
+    "April": "Avr",
+    "May": "Mai",
+    "June": "Juin",
+    "July": "Juil",
+    "August": "Août",
+    "September": "Sept",
+    "October": "Oct",
+    "November": "Nov",
+    "December": "Déc",
 
-    this.chartInstances['abonnements'] = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Abonnements',
-          data: data,
-          backgroundColor: '#FF5C01',
-        }]
+    // Mois en français
+    "Janvier": "Jan",
+    "Février": "Fév",
+    "Mars": "Mar",
+    "Avril": "Avr",
+    "Mai": "Mai",
+    "Juin": "Juin",
+    "Juillet": "Juil",
+    "Août": "Août",
+    "Septembre": "Sept",
+    "Octobre": "Oct",
+    "Novembre": "Nov",
+    "Décembre": "Déc"
+  };
+
+  const labels = this.evolutionData.map(d => monthMap[d.month] || d.month);
+  const data = this.evolutionData.map(d => d.total);
+
+  this.chartInstances['abonnements'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Abonnements',
+        data: data,
+        backgroundColor: '#FF5C01'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1E293B',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          cornerRadius: 8
+        }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: '#1E293B',
-            titleColor: '#fff',
-            bodyColor: '#fff',
-            padding: 12,
-            cornerRadius: 8,
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#E5E7EB' },
+          ticks: {
+            color: '#6B7280',
+            font: { size: 12 }
           }
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: '#E5E7EB',
-            },
-            ticks: {
-              color: '#6B7280',
-              font: {
-                size: 12
-              }
-            }
-          },
-          x: {
-            grid: {
-              display: false
-            },
-            ticks: {
-              color: '#6B7280',
-              font: {
-                size: 12
-              }
-            }
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#6B7280',
+            font: { size: 12 },
+
+            // 🚀 Correction PC : labels horizontaux
+            maxRotation: 0,
+            minRotation: 0
           }
         }
       }
-    });
+    }
+  });
+}
+
+
+/**
+ * Crée ou met à jour le graphique d'évolution des revenus
+ */
+updateRevenusChart(): void {
+  if (!this.revenusChart?.nativeElement) return;
+
+  const ctx = this.revenusChart.nativeElement.getContext('2d');
+  if (!ctx) return;
+
+  // Détruire l'ancien graphique s'il existe
+  if (this.chartInstances['revenus']) {
+    this.chartInstances['revenus'].destroy();
   }
 
-  /**
-   * Crée ou met à jour le graphique d'évolution des revenus
-   */
-  updateRevenusChart(): void {
-    if (!this.revenusChart?.nativeElement) return;
+  // Map des mois → abréviations (FR + EN)
+  const monthMap: Record<string, string> = {
+    "January": "Jan",
+    "February": "Fév",
+    "March": "Mar",
+    "April": "Avr",
+    "May": "Mai",
+    "June": "Juin",
+    "July": "Juil",
+    "August": "Août",
+    "September": "Sept",
+    "October": "Oct",
+    "November": "Nov",
+    "December": "Déc",
 
-    const ctx = this.revenusChart.nativeElement.getContext('2d');
-    if (!ctx) return;
+    "Janvier": "Jan",
+    "Février": "Fév",
+    "Mars": "Mar",
+    "Avril": "Avr",
+    "Mai": "Mai",
+    "Juin": "Juin",
+    "Juillet": "Juil",
+    "Août": "Août",
+    "Septembre": "Sept",
+    "Octobre": "Oct",
+    "Novembre": "Nov",
+    "Décembre": "Déc"
+  };
 
-    // Détruire l'ancien graphique s'il existe
-    if (this.chartInstances['revenus']) {
-      this.chartInstances['revenus'].destroy();
-    }
+  const labels = this.revenuData.map(d => monthMap[d.month] || d.month);
+  const data = this.revenuData.map(d => d.total);
 
-    const labels = this.revenuData.map(d => d.month);
-    const data = this.revenuData.map(d => d.total);
-
-    this.chartInstances['revenus'] = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Revenus (F CFA)',
-          data: data,
-          backgroundColor: '#0D47A1',
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          },
-          tooltip: {
-            backgroundColor: '#1E293B',
-            titleColor: '#fff',
-            bodyColor: '#fff',
-            padding: 12,
-            callbacks: {
-              label: (context) => {
-                return `${context.parsed.y.toLocaleString('fr-FR')} F CFA`;
-              }
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: '#E5E7EB',
-            },
-            ticks: {
-              color: '#6B7280',
-              font: {
-                size: 12
-              },
-              callback: (value) => {
-                return `${value.toLocaleString('fr-FR')}`;
-              }
-            }
-          },
-          x: {
-            grid: {
-              display: false
-            },
-            ticks: {
-              color: '#6B7280',
-              font: {
-                size: 12
-              }
+  this.chartInstances['revenus'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenus (F CFA)',
+        data: data,
+        backgroundColor: '#0D47A1'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1E293B',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          callbacks: {
+            label: (context) => {
+              return `${context.parsed.y.toLocaleString('fr-FR')} F CFA`;
             }
           }
         }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#E5E7EB' },
+          ticks: {
+            color: '#6B7280',
+            font: { size: 12 },
+            callback: (value) => {
+              return `${value.toLocaleString('fr-FR')}`;
+            }
+          }
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#6B7280',
+            font: { size: 12 },
+
+            // 🚀 Garde les labels horizontaux sur PC
+            maxRotation: 0,
+            minRotation: 0
+          }
+        }
       }
-    });
-  }
+    }
+  });
+}
 
   /**
    * Crée ou met à jour le graphique de répartition des profils (barres horizontales)

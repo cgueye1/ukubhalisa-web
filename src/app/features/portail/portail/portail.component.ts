@@ -1,10 +1,9 @@
-// portail.component.ts
 import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { trigger, state, style, transition, animate } from '@angular/animations';
 import { PlanAbonnementService, SubscriptionPlan } from '../../../../services/plan-abonnement.service';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, takeUntil, interval } from 'rxjs';
 
 @Component({
   selector: 'app-portail',
@@ -39,6 +38,12 @@ import { Subject, takeUntil } from 'rxjs';
       transition(':leave', [
         animate('300ms ease-in', style({ height: 0, opacity: 0 }))
       ])
+    ]),
+    trigger('planFade', [
+      transition('* => *', [
+        style({ opacity: 0, transform: 'scale(0.95)' }),
+        animate('400ms ease-out', style({ opacity: 1, transform: 'scale(1)' }))
+      ])
     ])
   ]
 })
@@ -49,9 +54,15 @@ export class PortailComponent implements OnInit, OnDestroy {
   mobileMenuOpen = false;
   isLoadingPlans = true;
 
-  // Plans d'abonnement
-  premiumPlan: SubscriptionPlan | null = null;
-  basicPlan: SubscriptionPlan | null = null;
+  // Plans d'abonnement actuels affichés
+  currentPremiumPlan: SubscriptionPlan | null = null;
+  currentBasicPlan: SubscriptionPlan | null = null;
+
+  // Tous les plans groupés par name
+  allPlansByName: { [key: string]: { premium: SubscriptionPlan | null, basic: SubscriptionPlan | null } } = {};
+  planNames: string[] = [];
+  currentNameIndex: number = 0;
+  animationKey: number = 0; // Pour forcer la ré-animation
 
   features = [
     {
@@ -109,23 +120,33 @@ export class PortailComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Charge les plans d'abonnement PROMOTEUR
+   * Charge tous les plans d'abonnement et lance l'animation
    */
   loadPlans(): void {
     this.isLoadingPlans = true;
     
-    this.planService.getPlansByName('PROMOTEUR')
+    this.planService.getAllPlans()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (plans) => {
-          console.log('✅ Plans PROMOTEUR chargés:', plans);
+          console.log('✅ Tous les plans chargés:', plans);
           
-          // Trouver les plans PREMIUM et BASIC
-          this.premiumPlan = plans.find(p => p.label === 'PREMIUM') || null;
-          this.basicPlan = plans.find(p => p.label === 'BASIC') || null;
+          // Grouper les plans par name
+          this.groupPlansByName(plans);
+          
+          // Obtenir la liste des names disponibles
+          this.planNames = Object.keys(this.allPlansByName);
+          console.log('📋 Names disponibles:', this.planNames);
+          
+          // Afficher le premier groupe de plans
+          if (this.planNames.length > 0) {
+            this.showPlansForName(0);
+            
+            // Lancer l'animation de rotation toutes les 2 secondes
+            this.startPlanRotation();
+          }
           
           this.isLoadingPlans = false;
-          
         },
         error: (error) => {
           console.error('❌ Erreur lors du chargement des plans:', error);
@@ -135,16 +156,74 @@ export class PortailComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Groupe les plans par name (PROMOTEUR, MOA, BET, etc.)
+   */
+  private groupPlansByName(plans: SubscriptionPlan[]): void {
+    this.allPlansByName = {};
+    
+    plans.forEach(plan => {
+      if (!this.allPlansByName[plan.name]) {
+        this.allPlansByName[plan.name] = {
+          premium: null,
+          basic: null
+        };
+      }
+      
+      if (plan.label === 'PREMIUM') {
+        this.allPlansByName[plan.name].premium = plan;
+      } else if (plan.label === 'BASIC') {
+        this.allPlansByName[plan.name].basic = plan;
+      }
+    });
+    
+    console.log('📊 Plans groupés par name:', this.allPlansByName);
+  }
+
+  /**
+   * Affiche les plans pour un name donné
+   */
+  private showPlansForName(index: number): void {
+    const name = this.planNames[index];
+    if (!name) return;
+    
+    const planGroup = this.allPlansByName[name];
+    this.currentPremiumPlan = planGroup.premium;
+    this.currentBasicPlan = planGroup.basic;
+    this.currentNameIndex = index;
+    this.animationKey++; // Incrémenter pour forcer la ré-animation
+    
+    console.log(`🔄 Affichage des plans pour: ${name}`, {
+      premium: this.currentPremiumPlan?.label,
+      basic: this.currentBasicPlan?.label
+    });
+  }
+
+  /**
+   * Lance la rotation automatique des plans toutes les 2 secondes
+   */
+  private startPlanRotation(): void {
+    interval(2000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        const nextIndex = (this.currentNameIndex + 1) % this.planNames.length;
+        this.showPlansForName(nextIndex);
+      });
+  }
+
+  /**
+   * Retourne le nom actuel affiché
+   */
+  getCurrentName(): string {
+    return this.planNames[this.currentNameIndex] || '';
+  }
+
+  /**
    * Tronque la description à 2 lignes maximum
-   * Prend les 2 premières lignes de la description
    */
   truncateDescription(description: string): string {
     if (!description) return '';
     
-    // Diviser la description par les sauts de ligne
     const lines = description.split('\n').filter(line => line.trim() !== '');
-    
-    // Prendre seulement les 2 premières lignes
     const truncated = lines.slice(0, 2).join('\n');
     
     return truncated;
@@ -186,7 +265,6 @@ export class PortailComponent implements OnInit, OnDestroy {
         behavior: 'smooth'
       });
 
-      // Fermer le menu mobile après le clic
       this.mobileMenuOpen = false;
     }
   }

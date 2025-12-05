@@ -463,131 +463,150 @@
                     </button>
                 </div>
     
-                <!-- Plan PREMIUM (Dynamique - Recommandé) -->
-                <div *ngIf="premiumPlan" class="bg-white rounded-lg p-8 shadow-lg border-2 border-orange-500 relative">
-                    <div class="absolute top-0 right-6 transform -translate-y-1/2">
-                        <span class="inline-block px-4 py-1 bg-orange-500 text-white rounded-full text-sm font-medium">
-                            Recommandé
-                        </span>
-                    </div>
-    
-                    <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ premiumPlan.label }}</h3>
-                    <p class="text-gray-600 mb-6">{{ truncateDescription(premiumPlan.description) }}</p>
-    
-                    <div class="mb-8">
-                        <span class="text-4xl font-bold text-gray-900">{{ formatAmount(premiumPlan.totalCost) }}</span>
-                        <span class="text-gray-600 ml-2">/ {{ premiumPlan.installmentCount }} mois</span>
-                    </div>
-    
-                    <div class="space-y-3 mb-8">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700" *ngIf="premiumPlan.unlimitedProjects">Projets illimités</span>
-                            <span class="text-gray-700" *ngIf="!premiumPlan.unlimitedProjects">
-                                {{ premiumPlan.projectLimit }} projets
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">MOA, BET, Chef & Ouvrier</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">Support prioritaire</span>
-                        </div>
-                        <div class="flex items-center gap-2" *ngIf="premiumPlan.yearlyDiscountRate > 0">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">-{{ premiumPlan.yearlyDiscountRate }}% sur l'abonnement annuel</span>
-                        </div>
-                    </div>
-    
-                    <button (click)="goToLogin()"
-                        class="w-full py-3 px-6 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors shadow-md">
-                        Souscrire
-                    </button>
-                </div>
-    
-                <!-- Placeholder si PREMIUM non disponible -->
-                <div *ngIf="!premiumPlan && !isLoadingPlans"
-                    class="bg-white rounded-lg p-8 shadow-lg border-2 border-gray-200 relative">
-                    <p class="text-center text-gray-500">Plan Premium non disponible</p>
-                </div>
-    
-                <!-- Plan BASIC (Dynamique) -->
-                <div *ngIf="basicPlan" class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-2">{{ basicPlan.label }}</h3>
-                    <p class="text-gray-600 mb-6">{{ truncateDescription(basicPlan.description) }}</p>
-    
-                    <div class="mb-8">
-                        <span class="text-4xl font-bold text-gray-900">{{ formatAmount(basicPlan.totalCost) }}</span>
-                        <span class="text-gray-600 ml-2">/ {{ basicPlan.installmentCount }} mois</span>
-                    </div>
-    
-                    <div class="space-y-3 mb-8">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700" *ngIf="basicPlan.unlimitedProjects">Projets illimités</span>
-                            <span class="text-gray-700" *ngIf="!basicPlan.unlimitedProjects">
-                                {{ basicPlan.projectLimit }} projets
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">Fonctionnalités de base</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">Support standard</span>
-                        </div>
-                        <div class="flex items-center gap-2" *ngIf="basicPlan.yearlyDiscountRate > 0">
-                            <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <span class="text-gray-700">-{{ basicPlan.yearlyDiscountRate }}% sur l'abonnement annuel</span>
-                        </div>
-                    </div>
-    
-                    <button (click)="goToLogin()"
-                        class="w-full py-3 px-6 border-2 border-orange-500 text-orange-500 rounded-lg font-medium hover:bg-orange-50 transition-colors">
-                        Nous contacter
-                    </button>
-                </div>
-    
-                <!-- Placeholder si BASIC non disponible -->
-                <div *ngIf="!basicPlan && !isLoadingPlans"
-                    class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
-                    <p class="text-center text-gray-500">Plan Basic non disponible</p>
-                </div>
+           <!-- Plan PREMIUM (Dynamique avec animation - Recommandé) -->
+<div *ngIf="currentPremiumPlan" 
+[@planFade]="animationKey"
+class="bg-white rounded-lg p-8 shadow-lg border-2 border-orange-500 relative">
+<div class="absolute top-0 right-6 transform -translate-y-1/2">
+   <span class="inline-block px-4 py-1 bg-orange-500 text-white rounded-full text-sm font-medium">
+       Recommandé
+   </span>
+</div>
+
+<!-- Badge du type de plan avec animation -->
+<div class="flex items-center gap-2 mb-4">
+   <h3 class="text-2xl font-bold text-gray-900">{{ currentPremiumPlan.label }}</h3>
+   <span class="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+       {{ getCurrentName() }}
+   </span>
+</div>
+
+<p class="text-gray-600 mb-6">{{ truncateDescription(currentPremiumPlan.description) }}</p>
+
+<div class="mb-8">
+   <span class="text-4xl font-bold text-gray-900">{{ formatAmount(currentPremiumPlan.totalCost) }}</span>
+   <span class="text-gray-600 ml-2">/ {{ currentPremiumPlan.installmentCount }} mois</span>
+</div>
+
+<div class="space-y-3 mb-8">
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700" *ngIf="currentPremiumPlan.unlimitedProjects">Projets illimités</span>
+       <span class="text-gray-700" *ngIf="!currentPremiumPlan.unlimitedProjects">
+           {{ currentPremiumPlan.projectLimit }} projets
+       </span>
+   </div>
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">MOA, BET, Chef & Ouvrier</span>
+   </div>
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">Support prioritaire</span>
+   </div>
+   <div class="flex items-center gap-2" *ngIf="currentPremiumPlan.yearlyDiscountRate > 0">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">-{{ currentPremiumPlan.yearlyDiscountRate * 100 }}% sur l'abonnement annuel</span>
+   </div>
+</div>
+
+<button (click)="goToLogin()"
+   class="w-full py-3 px-6 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition-colors shadow-md">
+   Souscrire
+</button>
+</div>
+
+<!-- Placeholder si PREMIUM non disponible -->
+<div *ngIf="!currentPremiumPlan && !isLoadingPlans"
+class="bg-white rounded-lg p-8 shadow-lg border-2 border-gray-200 relative">
+<p class="text-center text-gray-500">Plan Premium non disponible</p>
+</div>
+
+<!-- Plan BASIC (Dynamique avec animation) -->
+<div *ngIf="currentBasicPlan" 
+[@planFade]="animationKey"
+class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+
+<!-- Badge du type de plan avec animation -->
+<div class="flex items-center gap-2 mb-4">
+   <h3 class="text-2xl font-bold text-gray-900">{{ currentBasicPlan.label }}</h3>
+   <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+       {{ getCurrentName() }}
+   </span>
+</div>
+
+<p class="text-gray-600 mb-6">{{ truncateDescription(currentBasicPlan.description) }}</p>
+
+<div class="mb-8">
+   <span class="text-4xl font-bold text-gray-900">{{ formatAmount(currentBasicPlan.totalCost) }}</span>
+   <span class="text-gray-600 ml-2">/ {{ currentBasicPlan.installmentCount }} mois</span>
+</div>
+
+<div class="space-y-3 mb-8">
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700" *ngIf="currentBasicPlan.unlimitedProjects">Projets illimités</span>
+       <span class="text-gray-700" *ngIf="!currentBasicPlan.unlimitedProjects">
+           {{ currentBasicPlan.projectLimit }} projets
+       </span>
+   </div>
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">Fonctionnalités de base</span>
+   </div>
+   <div class="flex items-center gap-2">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">Support standard</span>
+   </div>
+   <div class="flex items-center gap-2" *ngIf="currentBasicPlan.yearlyDiscountRate > 0">
+       <svg class="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+           <path fill-rule="evenodd"
+               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+               clip-rule="evenodd" />
+       </svg>
+       <span class="text-gray-700">-{{ currentBasicPlan.yearlyDiscountRate * 100 }}% sur l'abonnement annuel</span>
+   </div>
+</div>
+
+<button (click)="goToLogin()"
+   class="w-full py-3 px-6 border-2 border-orange-500 text-orange-500 rounded-lg font-medium hover:bg-orange-50 transition-colors">
+   Nous contacter
+</button>
+</div>
+
+<!-- Placeholder si BASIC non disponible -->
+<div *ngIf="!currentBasicPlan && !isLoadingPlans"
+class="bg-white rounded-lg p-8 shadow-sm border border-gray-200">
+<p class="text-center text-gray-500">Plan Basic non disponible</p>
+</div>
             </div>
         </div>
     </section>
