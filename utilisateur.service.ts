@@ -67,6 +67,7 @@ export interface Worker {
   activated: boolean;
   notifiable: boolean;
   telephone: string;
+  present:boolean;
   subscriptions: Subscription[];
   company: Company | null;
   createdAt: string | number[]; // Peut être string ou array selon l'endpoint
@@ -112,7 +113,7 @@ export interface CreateWorkerRequest {
   lieunaissance: string;
   adress: string;
   profil: string;
-  managerId?: number; // Ajoutez ce champ optionnel
+  propertyId?: number; // Ajoutez ce champ optionnel
 }
 
 @Injectable({
@@ -145,6 +146,22 @@ export class UtilisateurService {
 
     return this.http.get<WorkersResponse>(
       `${this.apiUrl}/${currentUserId}/team/others`,
+      
+      { 
+        params,
+        headers: this.getAuthHeaders()
+      }
+    );
+  }
+  getWorkers(page: number = 0, size: number = 30,propertyId:number): Observable<WorkersResponse> {
+    
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    return this.http.get<WorkersResponse>(
+      `${this.apiUrl}/property/${propertyId}`,
+      
       { 
         params,
         headers: this.getAuthHeaders()
@@ -223,6 +240,20 @@ export class UtilisateurService {
     );
   }
 
+
+  createWorker(workerData: CreateWorkerRequest,propertyId: number): Observable<Worker> {
+ 
+    
+    if (!propertyId) {
+      throw new Error('Utilisateur non connecté');
+    }
+
+    return this.http.post<Worker>(
+      `${this.apiUrl}/save/${propertyId}`,
+      workerData,
+      { headers: this.getAuthHeaders() }
+    );
+  }
   /**
    * Crée un nouveau fournisseur (worker avec profil SUPPLIER)
    * @param supplierData Données du fournisseur à créer
@@ -475,22 +506,7 @@ export class UtilisateurService {
     return errors;
   }
 }
+/*
 
-// voici le ts 
-// adapte bien pour la creation d'un membbre (c'est un user de profil WORKER)
-// voici le corps de la requete 
-// {
-//   "nom": "Saliou",
-//   "prenom": "Fall",
-//   "email": "saliou@yopmail.com",
-//   "password": "passer123",
-//   "telephone": "772339034",
-//   "date": "02-02-1999",
-//   "lieunaissance": "Toglou",
-//   "adress": "Fann-Hock",
-//   "profil": "WORKER"
-// }
-// voici le service 
-// voici le ts 
-// donne la bonne version du ts bien adapter c'est ce format de donner les meme attribut doivent etre dans le formulaire de crarion d'un membre
-// voici le html adapte le popu de creation apres je te donne le html adapte le ts d'abord
+
+*/
