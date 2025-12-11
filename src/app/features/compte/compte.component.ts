@@ -6,6 +6,7 @@ import { SubscriptionService, Invoice, InvoiceResponse, SubscriptionPlan, UserSu
 import { ActivatedRoute, Router } from '@angular/router';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { environment } from '../../../environments/environment';
  
 @Component({
   selector: 'app-compte',
@@ -16,7 +17,7 @@ import html2canvas from 'html2canvas';
 })
 export class CompteComponent implements OnInit, OnDestroy {
   // Constante pour le répertoire de base des photos
-  private readonly PHOTO_BASE_URL = 'https://wakana.online/repertoire_samater/';
+
   
   activeTab = signal<'informations' | 'abonnements' | 'factures'>('informations');
   userForm!: FormGroup;
@@ -594,21 +595,22 @@ private cleanUrl(): void {
     return !!(user?.photo) && !this.photoLoadError();
   }
 
-  /**
-   * Obtient l'URL complète de la photo de profil
-   */
-  getUserPhotoUrl(): string {
-    // Priorité à la prévisualisation si disponible
-    if (this.photoPreviewUrl()) {
-      return this.photoPreviewUrl()!;
-    }
-    
-    const user = this.currentUser();
-    if (user?.photo && !this.photoLoadError()) {
-      return `${this.PHOTO_BASE_URL}${user.photo}`;
-    }
-    return '';
+/**
+ * Obtient l'URL complète de la photo de profil
+ */
+getUserPhotoUrl(): string {
+  // Priorité à la prévisualisation si disponible
+  if (this.photoPreviewUrl()) {
+    return this.photoPreviewUrl()!;
   }
+  
+  const user = this.currentUser();
+  if (user?.photo && !this.photoLoadError()) {
+    // ✅ Utiliser environment.filebaseUrl au lieu de PHOTO_BASE_URL
+    return `${environment.filebaseUrl}${user.photo}`;
+  }
+  return '';
+}
 
   /**
    * Vérifie si l'utilisateur a un abonnement actif
@@ -666,19 +668,25 @@ private cleanUrl(): void {
 
   getExpirationDate(): string {
     const subscription = this.currentSubscription();
-    if (!subscription || !subscription.createdAt) {
+    if (!subscription || !subscription.endDate) {
       return 'Non disponible';
     }
-    
-    const createdDate = new Date(subscription.createdAt);
-    createdDate.setMonth(createdDate.getMonth() + 1);
-    
-    return createdDate.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+   
+    try {
+      const date = new Date(subscription.endDate);
+     
+      if (isNaN(date.getTime())) {
+        return 'Non disponible';
+      }
+   
+      // Format: "09/12/2025"
+      return date.toLocaleDateString('fr-FR');
+    } catch (error) {
+      console.error('Erreur lors du formatage de la date:', error);
+      return 'Non disponible';
+    }
   }
+   
 
   getSubscriptionPeriod(): string {
     const subscription = this.currentSubscription();
@@ -1023,9 +1031,6 @@ private cleanUrl(): void {
     this.showInfo('Téléchargement en cours...');
   }
 
-  /**
-   * Soumet le formulaire avec photo
-   */
   onSubmit(): void {
     if (this.userForm.invalid) {
       this.showError('Veuillez remplir correctement tous les champs requis');
@@ -1037,50 +1042,111 @@ private cleanUrl(): void {
       });
       return;
     }
-
+  
     const user = this.currentUser();
     if (!user) {
       this.showError('Utilisateur non trouvé');
       return;
     }
-
+  
     this.isSaving.set(true);
-
-    // Créer un FormData pour envoyer toutes les données (y compris la photo)
+  
+    // Créer un FormData pour envoyer toutes les données
     const formData = new FormData();
     
+    // Liste des champs à envoyer (selon l'API)
+    const fieldsToSend = [
+      'nom',
+      'prenom', 
+      'email',
+      'telephone',
+      'date',
+      'lieunaissance',
+      'adress',
+      'profil'
+    ];
+  
     // Ajouter les champs du formulaire
-    Object.keys(this.userForm.value).forEach(key => {
-      const value = this.userForm.value[key];
+    fieldsToSend.forEach(key => {
+      const value = this.userForm.get(key)?.value;
       if (value !== null && value !== undefined && value !== '') {
         formData.append(key, value);
+        console.log(`📝 Ajout ${key}:`, value);
       }
     });
-
+  
     // Ajouter la photo si elle a été sélectionnée
     if (this.selectedPhotoFile()) {
-      formData.append('photo', this.selectedPhotoFile()!);
-      console.log('📸 Photo ajoutée au FormData');
+      formData.append('photo', this.selectedPhotoFile()!, this.selectedPhotoFile()!.name);
+      console.log('📸 Photo ajoutée au FormData:', this.selectedPhotoFile()!.name);
     }
-
+  
+    console.log('🚀 Envoi de la mise à jour pour l\'utilisateur:', user.id);
+  
     // Utiliser l'ID de l'utilisateur connecté
     this.authService.updateUserProfile(formData, user.id).subscribe({
       next: (updatedUser) => {
+        console.log('✅ Profil mis à jour avec succès:', updatedUser);
+        
+        // Mettre à jour l'état local
         this.currentUser.set(updatedUser);
+        
+        // Réinitialiser les états de la photo
         this.selectedPhotoFile.set(null);
         this.photoPreviewUrl.set(null);
         this.photoLoadError.set(false);
+        
+        // Recharger la photo si elle existe
+        if (updatedUser.photo) {
+          this.loadUserPhoto();
+        }
+        
         this.showSuccess('Vos informations ont été mises à jour avec succès');
         this.isSaving.set(false);
       },
       error: (error) => {
-        console.error('Erreur mise à jour profil:', error);
-        this.showError('Une erreur est survenue lors de la mise à jour');
+        console.error('❌ Erreur mise à jour profil:', error);
+        
+        // Message d'erreur plus détaillé
+        let errorMessage = 'Une erreur est survenue lors de la mise à jour';
+        if (error.error?.message) {
+          errorMessage = error.error.message;
+        } else if (error.status === 413) {
+          errorMessage = 'La photo est trop volumineuse. Veuillez en choisir une plus petite.';
+        } else if (error.status === 400) {
+          errorMessage = 'Données invalides. Vérifiez les informations saisies.';
+        } else if (error.status === 401) {
+          errorMessage = 'Session expirée. Veuillez vous reconnecter.';
+        }
+        
+        this.showError(errorMessage);
         this.isSaving.set(false);
       }
     });
   }
-
+/**
+ * Recharge la photo de profil depuis le serveur
+ */
+private loadUserPhoto(): void {
+  const user = this.currentUser();
+  if (user?.photo) {
+    // Forcer le rechargement en ajoutant un timestamp
+    const timestamp = new Date().getTime();
+    const photoUrl = `${environment.filebaseUrl}${user.photo}?t=${timestamp}`;
+    
+    // Précharger l'image pour éviter les erreurs d'affichage
+    const img = new Image();
+    img.onload = () => {
+      this.photoLoadError.set(false);
+      console.log('✅ Photo rechargée avec succès');
+    };
+    img.onerror = () => {
+      this.photoLoadError.set(true);
+      console.error('❌ Erreur lors du rechargement de la photo');
+    };
+    img.src = photoUrl;
+  }
+}
   onCancel(): void {
     const user = this.currentUser();
     if (user) {

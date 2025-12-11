@@ -1,7 +1,7 @@
-  import { Injectable, signal, computed, Inject, PLATFORM_ID } from '@angular/core';
-  import { HttpClient, HttpHeaders } from '@angular/common/http';
-  import { Observable, tap, catchError, of } from 'rxjs';
-  import { isPlatformBrowser } from '@angular/common';
+import { Injectable, signal, computed, Inject, PLATFORM_ID } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, tap, catchError, of } from 'rxjs';
+import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../../environments/environment';
 
   // Interface pour le plan d'abonnement
@@ -11,7 +11,18 @@ import { environment } from '../../../../environments/environment';
     totalCost: number;
     installmentCount: number;
   }
-
+// Interface pour la mise à jour du profil utilisateur
+export interface UpdateUserProfileData {
+  nom?: string;
+  prenom?: string;
+  email?: string;
+  telephone?: string;
+  date?: string;
+  lieunaissance?: string;
+  adress?: string;
+  profil?: string;
+  photo?: File;
+}
   // Interface pour l'abonnement
   interface Subscription {
     id: number;
@@ -633,28 +644,25 @@ userProfile = computed(() => {
       return this.getCurrentUser();
     }
 
- // Méthode pour mettre à jour le profil utilisateur (avec ou sans photo)
-updateUserProfile(userData: Partial<User> | FormData, id: number): Observable<User> {
-  // Vérifier si userData est un FormData
-  const isFormData = userData instanceof FormData;
-  
-  // Préparer les headers en fonction du type de données
-  let headers: HttpHeaders;
-  
-  if (isFormData) {
-    // Pour FormData, ne pas définir Content-Type (le navigateur le fait automatiquement)
-    headers = new HttpHeaders({
-      'Authorization': `Bearer ${this.getToken()}`
-    });
-  } else {
-    // Pour JSON, utiliser les headers standards
-    headers = this.getAuthHeaders();
-  }
+// Méthode pour mettre à jour le profil utilisateur (avec ou sans photo)
+updateUserProfile(formData: FormData, id: number): Observable<User> {
+  // Pour FormData, ne pas définir Content-Type (le navigateur le fait automatiquement avec boundary)
+  const headers = new HttpHeaders({
+    'Authorization': `Bearer ${this.getToken()}`
+  });
 
-  return this.http.put<User>(`${this.userApiUrl}/${id}`, userData, { headers }).pipe(
+  console.log('🔄 Mise à jour du profil utilisateur ID:', id);
+  console.log('📦 FormData contient:', Array.from((formData as any).entries()));
+
+  return this.http.put<User>(`${this.userApiUrl}/${id}`, formData, { headers }).pipe(
     tap(updatedUser => {
+      // Mettre à jour l'utilisateur dans le state
       this._currentUser.set(updatedUser);
       console.log('✅ Profil utilisateur mis à jour:', updatedUser);
+    }),
+    catchError(error => {
+      console.error('❌ Erreur mise à jour profil:', error);
+      throw error;
     })
   );
 }

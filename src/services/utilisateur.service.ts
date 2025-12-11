@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AuthService } from '../app/features/auth/services/auth.service';  // Ajustez le chemin selon votre structure
+import { AuthService } from '../app/features/auth/services/auth.service'; 
+import { environment } from '../environments/environment';
 
 // Interface pour la pagination
 interface Pageable {
@@ -120,7 +121,10 @@ export interface CreateWorkerRequest {
   providedIn: 'root'
 })
 export class UtilisateurService {
-  private apiUrl = 'https://wakana.online/api/workers';
+  
+  private apiUrl =  `${environment.apiUrl}/workers`;
+
+  // private apiUrl = 'https://wakana.online/api/workers';
 
   constructor(
     private http: HttpClient,

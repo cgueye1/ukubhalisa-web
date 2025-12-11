@@ -82,6 +82,8 @@ export interface UserSubscription {
   };
   subscriptionPlan: SubscriptionPlan;
   createdAt: string;
+  endDate:string;
+  startDate:string;
 }
 
 export interface CreateSubscriptionParams {

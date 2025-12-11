@@ -19,35 +19,16 @@ interface ProfileMapping {
 })
 export class RegisterComponent implements OnInit {
   profileForm!: FormGroup;
-  currentStep: number = 1;
-  selectedImage: string | null = null;
-  imageFile: File | null = null;
   
   successMessage = '';
   errorMessage = '';
   validationErrors: string[] = [];
   isLoading = false;
 
-  // Profils disponibles avec mapping français
+  // Profils disponibles (seulement PROMOTEUR et MOA)
   availableProfiles: ProfileMapping[] = [
     { value: 'PROMOTEUR', displayName: 'Promoteur' },
-    { value: 'WORKER', displayName: 'Ouvrier' },
-    { value: 'SUBCONTRACTOR', displayName: 'Sous-Traitant' }
-    
-  ];
-
-  // Liste des postes pour le menu déroulant
-  jobTitles: string[] = [
-    'Directeur de projet',
-    'Chef de chantier',
-    'Architecte',
-    'Ingénieur',
-    'Conducteur de travaux',
-    'Ouvrier qualifié',
-    'Entrepreneur',
-    'Responsable sécurité',
-    'Administrateur',
-    'Autre'
+    { value: 'MOA', displayName: 'Maître d\'Ouvrage (MOA)' }
   ];
 
   constructor(
@@ -70,24 +51,17 @@ export class RegisterComponent implements OnInit {
       prenom: ['', [Validators.required, Validators.minLength(2)]],
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', Validators.required],
       telephone: ['', [Validators.required, Validators.pattern(/^7[05678]\d{7}$/)]],
       
       // Adresse
       adress: ['', Validators.required],
       
       // Informations optionnelles
-      date: [''], // Date de naissance
-      lieunaissance: [''], // Lieu de naissance
+      date: [''], // Date de naissance (optionnel)
+      lieunaissance: [''], // Lieu de naissance (optionnel)
       
       // Profil utilisateur - REQUIS
-      profil: ['', Validators.required],
-      
-      // Informations spécifiques selon le profil
-      company: [''], // Pour les sous-traitants
-      jobTitle: [''] // Poste occupé
-    }, { 
-      validators: this.passwordMatchValidator 
+      profil: ['', Validators.required]
     });
   }
 
@@ -101,90 +75,21 @@ export class RegisterComponent implements OnInit {
     });
     return formattedDate;
   }
-  // Validateur personnalisé pour la confirmation du mot de passe
-  passwordMatchValidator(group: FormGroup) {
-    const password = group.get('password');
-    const confirmPassword = group.get('confirmPassword');
-    
-    if (password && confirmPassword && password.value !== confirmPassword.value) {
-      confirmPassword.setErrors({ passwordMismatch: true });
-      return { passwordMismatch: true };
-    }
-    
-    return null;
-  }
 
   // Détection du changement de profil
   onProfileChange(event: Event): void {
     const selectElement = event.target as HTMLSelectElement;
     const selectedValue = selectElement.value;
-    
     console.log('👤 Profil sélectionné:', selectedValue);
-    
-    // Mettre à jour les validateurs selon le profil
-    this.updateValidatorsForProfile(selectedValue);
-  }
-
-  // Mettre à jour les validateurs selon le profil
-  private updateValidatorsForProfile(profile: string): void {
-    const companyControl = this.profileForm.get('company');
-    
-    // Pour les sous-traitants, l'entreprise est requise
-    if (profile === 'SUBCONTRACTOR') {
-      companyControl?.setValidators([Validators.required]);
-      console.log('✅ Champ entreprise requis pour SUBCONTRACTOR');
-    } else {
-      companyControl?.clearValidators();
-      console.log('❌ Champ entreprise optionnel');
-    }
-    
-    companyControl?.updateValueAndValidity();
-  }
-
-  // Vérifier si le profil nécessite des informations d'entreprise
-  get showCompanyField(): boolean {
-    const selectedProfile = this.profileForm.get('profil')?.value;
-    return selectedProfile === 'SUBCONTRACTOR';
-  }
-
-  // Passer à l'étape suivante (inscription directe sans photo)
-  nextStep(): void {
-    // Réinitialiser les messages
-    this.clearMessages();
-    
-    // Marquer tous les champs comme touchés pour afficher les erreurs
-    this.profileForm.markAllAsTouched();
-
-    // Vérifier que tous les champs requis sont remplis
-    console.log('🔍 État du formulaire:');
-    console.log('  - Valide:', this.profileForm.valid);
-    console.log('  - Valeurs:', this.profileForm.value);
-    console.log('  - Erreurs:', this.getFormErrors());
-
-    if (!this.profileForm.valid) {
-      this.showValidationErrors();
-      return;
-    }
-
-    this.onSubmit();
-  }
-
-  // Méthode helper pour débugger les erreurs du formulaire
-  private getFormErrors(): any {
-    const errors: any = {};
-    Object.keys(this.profileForm.controls).forEach(key => {
-      const control = this.profileForm.get(key);
-      if (control && control.errors) {
-        errors[key] = control.errors;
-      }
-    });
-    return errors;
   }
 
   onSubmit(): void {
     // Réinitialiser les messages
     this.clearMessages();
     
+    // Marquer tous les champs comme touchés pour afficher les erreurs
+    this.profileForm.markAllAsTouched();
+
     if (!this.profileForm.valid) {
       this.showValidationErrors();
       return;
@@ -192,14 +97,13 @@ export class RegisterComponent implements OnInit {
 
     this.isLoading = true;
     
-    // Formater la date si elle existe (YYYY-MM-DD)
+    // Formater la date si elle existe (format DD-MM-YYYY pour l'API)
     let formattedDate = '';
     if (this.profileForm.value.date) {
-      formattedDate = this.profileForm.value.date;
+      formattedDate = this.convertDateFormat(this.profileForm.value.date);
     }
-      //   const formattedDate = this.createUserForm.date ? 
-      // this.convertDateFormat(this.createUserForm.date) : '';
-    // Préparer les données d'inscription - TOUS LES CHAMPS SONT REQUIS COMME STRING
+
+    // Préparer les données d'inscription - TOUS LES CHAMPS REQUIS
     const userData: CreateUserRequest = {
       nom: this.profileForm.value.nom?.trim() || '',
       prenom: this.profileForm.value.prenom?.trim() || '',
@@ -288,9 +192,6 @@ export class RegisterComponent implements OnInit {
             this.validationErrors.push(`Le numéro de téléphone doit être au format sénégalais (ex: 771234567).`);
           }
         }
-        if (control.errors?.['passwordMismatch']) {
-          this.validationErrors.push(`Les mots de passe ne correspondent pas.`);
-        }
       }
     });
   }
@@ -301,14 +202,11 @@ export class RegisterComponent implements OnInit {
       'prenom': 'Prénom',
       'email': 'Email',
       'password': 'Mot de passe',
-      'confirmPassword': 'Confirmation du mot de passe',
       'telephone': 'Téléphone',
       'adress': 'Adresse',
-      'company': 'Entreprise',
       'profil': 'Profil',
       'date': 'Date de naissance',
-      'lieunaissance': 'Lieu de naissance',
-      'jobTitle': 'Poste'
+      'lieunaissance': 'Lieu de naissance'
     };
     
     return fieldNames[fieldName] || fieldName;
