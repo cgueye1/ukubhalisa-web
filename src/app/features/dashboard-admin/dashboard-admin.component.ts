@@ -433,7 +433,7 @@ updateRevenusChart(): void {
           padding: 12,
           callbacks: {
             label: (context) => {
-              return `${context.parsed.y.toLocaleString('fr-FR')} F CFA`;
+              return `${(context.parsed.y ?? 0).toLocaleString('fr-FR')} F CFA`;
             }
           }
         }

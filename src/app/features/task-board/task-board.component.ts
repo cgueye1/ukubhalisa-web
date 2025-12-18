@@ -38,7 +38,7 @@ interface TaskDisplay extends Task {
 }
 
 interface TaskColumn {
-  id: string;
+  id: 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE';
   title: string;
   color: string;
   count: number;
@@ -225,7 +225,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
 
   private organizeTasks(apiTasks: Task[]): void {
     const transformedTasks = apiTasks.map(task => this.transformApiTask(task));
-
+  
     this.columns = [
       {
         id: 'TODO',
@@ -242,11 +242,18 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
         tasks: transformedTasks.filter(t => t.status === 'IN_PROGRESS')
       },
       {
-        id: 'COMPLETED',
+        id: 'BLOCKED',
+        title: 'Bloqué',
+        color: 'red-400',
+        count: transformedTasks.filter(t => t.status === 'BLOCKED').length,
+        tasks: transformedTasks.filter(t => t.status === 'BLOCKED')
+      },
+      {
+        id: 'DONE',
         title: 'Terminé',
         color: 'green-400',
-        count: transformedTasks.filter(t => t.status === 'COMPLETED').length,
-        tasks: transformedTasks.filter(t => t.status === 'COMPLETED')
+        count: transformedTasks.filter(t => t.status === 'DONE').length,
+        tasks: transformedTasks.filter(t => t.status === 'DONE')
       }
     ];
   }
@@ -255,7 +262,8 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     this.columns = [
       { id: 'TODO', title: 'À faire', color: 'gray', count: 0, tasks: [] },
       { id: 'IN_PROGRESS', title: 'En cours', color: 'yellow-400', count: 0, tasks: [] },
-      { id: 'COMPLETED', title: 'Terminé', color: 'green-400', count: 0, tasks: [] }
+      { id: 'BLOCKED', title: 'Bloqué', color: 'red-400', count: 0, tasks: [] },
+      { id: 'DONE', title: 'Terminé', color: 'green-400', count: 0, tasks: [] }
     ];
   }
 
@@ -277,7 +285,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
       comments: 0,
       attachments: apiTask.pictures?.length || 0,
       dueDate: apiTask.endDate ? this.formatDate(apiTask.endDate) : 'N/A',
-      isDone: apiTask.status === 'COMPLETED'
+      isDone: apiTask.status === 'DONE'
     };
   }
 
@@ -522,7 +530,7 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     const newColumn = this.columns.find(col => col.id === newStatus);
     if (newColumn) {
       task.status = newStatus as any;
-      task.isDone = newStatus === 'COMPLETED';
+      task.isDone = newStatus === 'DONE';
       newColumn.tasks.push(task);
       newColumn.count = newColumn.tasks.length;
     }
@@ -538,11 +546,11 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
       console.log('⏳ Mise à jour déjà en cours...');
       return;
     }
-
+  
     this.isUpdatingTaskStatus = true;
     
     console.log('📤 Envoi de la mise à jour au serveur:', { taskId, status: newStatus });
-
+  
     // Utiliser la méthode updateTaskStatus du service
     this.projectBudgetService.updateTaskStatus(taskId, newStatus)
       .pipe(
@@ -698,14 +706,36 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
       return;
     }
-
+  
     this.loading = true;
-    
-    setTimeout(() => {
-      this.loading = false;
-      this.loadTasks();
-      this.successMessage = 'Tâche supprimée avec succès';
-    }, 1000);
+    this.error = null;
+  
+    this.projectBudgetService.deleteTask(taskId)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
+      .subscribe({
+        next: () => {
+          console.log('Tâche supprimée avec succès');
+          this.successMessage = 'Tâche supprimée avec succès';
+          this.loadTasks();
+          
+          setTimeout(() => {
+            this.successMessage = null;
+          }, 3000);
+        },
+        error: (error) => {
+          console.error('Erreur lors de la suppression de la tâche:', error);
+          this.errorMessage = 'Erreur lors de la suppression de la tâche';
+          
+          setTimeout(() => {
+            this.errorMessage = null;
+          }, 5000);
+        }
+      });
   }
 
   // Pagination
@@ -786,7 +816,8 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     const statusMap: Record<string, string> = {
       'TODO': 'À faire',
       'IN_PROGRESS': 'En cours',
-      'COMPLETED': 'Terminé'
+      'BLOCKED': 'Bloqué',
+      'DONE': 'Terminé'
     };
     return statusMap[status] || status;
   }
@@ -964,12 +995,53 @@ export class TaskBoardComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateExistingTask(taskData: any): void {
-    setTimeout(() => {
+  private updateExistingTask(taskData: CreateTaskRequest): void {
+    if (!this.currentTask.id) {
+      this.error = 'ID de tâche manquant';
       this.loading = false;
-      this.successMessage = 'Tâche mise à jour avec succès';
-      this.loadTasks();
-      this.closeModal();
-    }, 1000);
+      return;
+    }
+  
+    // Convertir CreateTaskRequest en UpdateTaskRequest
+    const updateData: UpdateTaskRequest = {
+      title: taskData.title,
+      description: taskData.description,
+      priority: taskData.priority,
+      startDate: taskData.startDate,
+      endDate: taskData.endDate,
+      status: this.currentTask.status,
+      realEstatePropertyId: taskData.realEstatePropertyId,
+      executorIds: taskData.executorIds,
+      pictures: taskData.pictures
+    };
+  
+    this.projectBudgetService.updateTask(this.currentTask.id, updateData)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          console.log('Tâche mise à jour avec succès:', response);
+          this.successMessage = 'Tâche mise à jour avec succès';
+          this.loadTasks();
+          this.closeModal();
+          
+          setTimeout(() => {
+            this.successMessage = null;
+          }, 3000);
+        },
+        error: (error) => {
+          console.error('Erreur lors de la mise à jour de la tâche:', error);
+          this.error = 'Erreur lors de la mise à jour de la tâche';
+          this.errorMessage = error.message || error;
+          
+          setTimeout(() => {
+            this.errorMessage = null;
+          }, 5000);
+        }
+      });
   }
 }

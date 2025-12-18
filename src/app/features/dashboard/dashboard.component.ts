@@ -785,7 +785,7 @@ selectImageIndex(index: number): void {
               },
               label: (context) => {
                 const value = context.parsed.y;
-                return `${value} incident${value > 1 ? 's' : ''}`;
+                return `${value || 0} incident${(value || 0) > 1 ? 's' : ''}`;
               }
             }
           }

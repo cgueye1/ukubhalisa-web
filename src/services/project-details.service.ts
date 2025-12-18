@@ -52,7 +52,7 @@
     title: string;
     description: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';
-    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+    status: 'TODO' | 'IN_PROGRESS' |'BLOCKED'| 'DONE';
     startDate: number[];
     endDate: number[];
     pictures: string[];
@@ -555,7 +555,7 @@ export class ProjectBudgetService {
     console.log('Mise à jour du statut de la tâche:', { id, status });
     
     return this.http.put<any>(
-      `${this.baseUrl}/tasks/${id}`,
+      `${this.baseUrl}/tasks/${id}/status`,
       formData,
       { headers }
     ).pipe(
@@ -766,6 +766,11 @@ updateTask(id: number, taskData: UpdateTaskRequest ): Observable<any> {
   deleteDepense(id: number): Observable<void> {
     const headers = this.getAuthHeaders();
     return this.http.delete<void>(`${this.baseUrl}/expenses/${id}`, { headers })
+      .pipe(catchError(this.handleError));
+  }
+  deleteTask(id: number): Observable<void> {
+    const headers = this.getAuthHeaders();
+    return this.http.delete<void>(`${this.baseUrl}/task/${id}`, { headers })
       .pipe(catchError(this.handleError));
   }
 

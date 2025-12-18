@@ -2,7 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../services/auth.service';
 
 interface AlertMessage {
   type: 'success' | 'error' | 'warning';
@@ -43,15 +43,10 @@ export class ResetpasswordComponent implements OnInit {
   // Stocker l'email/téléphone pour les étapes suivantes
   private userIdentifier: string = '';
 
-  // URLs de l'API (à adapter selon votre backend)
-  private readonly apiRequestUrl = 'http://localhost:8080/api/auth/password/forgot';
-  private readonly apiVerifyUrl = 'http://localhost:8080/api/auth/password/verify-code';
-  private readonly apiResetUrl = 'http://localhost:8080/api/auth/password/reset';
-
   constructor(
     private fb: FormBuilder,
     private router: Router,
-    private http: HttpClient
+    private authService: AuthService // ✅ Injection du AuthService
   ) {
     // Étape 1 : Demander l'email/téléphone
     this.requestForm = this.fb.group({
@@ -202,7 +197,7 @@ export class ResetpasswordComponent implements OnInit {
     this.alert.update(current => ({ ...current, show: false }));
   }
 
-  // Étape 1 : Demander le code de réinitialisation
+  // ✅ ÉTAPE 1 : Demander le code de réinitialisation (UTILISE resetPassword du AuthService)
   onRequestCode(): void {
     this.requestForm.markAllAsTouched();
 
@@ -216,19 +211,14 @@ export class ResetpasswordComponent implements OnInit {
 
     this.userIdentifier = this.requestForm.get('email')?.value;
 
-    const requestData = {
+    const credentials = {
       email: this.userIdentifier
     };
 
     console.log('📧 Demande de code de réinitialisation pour:', this.userIdentifier);
 
-    // Ajouter les headers pour s'assurer que l'API comprend qu'on attend du JSON
-    this.http.post(this.apiRequestUrl, requestData, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    }).subscribe({
+    // ✅ UTILISATION DE LA MÉTHODE resetPassword() du AuthService
+    this.authService.resetPassword(credentials).subscribe({
       next: (response: any) => {
         console.log('✅ Code envoyé:', response);
         this.isLoading.set(false);
@@ -267,7 +257,9 @@ export class ResetpasswordComponent implements OnInit {
 
     console.log('🔍 Vérification du code:', verifyData.code);
 
-    this.http.post(this.apiVerifyUrl, verifyData, {
+    // TODO: Vous devrez peut-être ajouter cette méthode dans AuthService
+    // Pour l'instant, on utilise directement l'endpoint
+    this.authService['http'].post(`${this.authService['apiUrl']}/password/verify-code`, verifyData, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
@@ -312,7 +304,9 @@ export class ResetpasswordComponent implements OnInit {
 
     console.log('🔄 Réinitialisation du mot de passe');
 
-    this.http.post(this.apiResetUrl, resetData, {
+    // TODO: Vous devrez peut-être ajouter cette méthode dans AuthService
+    // Pour l'instant, on utilise directement l'endpoint
+    this.authService['http'].post(`${this.authService['apiUrl']}/password/reset-confirm`, resetData, {
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'

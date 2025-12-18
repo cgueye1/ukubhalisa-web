@@ -97,6 +97,9 @@ export interface UpdateUserProfileData {
     token: string;
     user: User;
   }
+  interface ResetPassword {
+    email: string;
+  }
 
   // Interface pour les données d'inscription
   export interface RegistrationData {
@@ -430,7 +433,17 @@ userProfile = computed(() => {
             this.setAuthData(response.token, response.user);
           })
         );
+    }  
+    
+    resetPassword(credentials: { email: string; }): Observable<LoginResponse> {
+      return this.http.post<LoginResponse>(`${this.apiUrl}/password/reset`, credentials)
+        .pipe(
+          tap(response => {
+            this.setAuthData(response.token, response.user);
+          })
+        );
     }
+
 
     logout(): void {
       this.clearAuthData();
