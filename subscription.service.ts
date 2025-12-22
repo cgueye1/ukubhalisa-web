@@ -82,6 +82,8 @@ export interface UserSubscription {
   };
   subscriptionPlan: SubscriptionPlan;
   createdAt: string;
+  endDate:string;
+  startDate:string;
 }
 
 export interface CreateSubscriptionParams {
@@ -386,7 +388,7 @@ export class SubscriptionService {
           this.oneTouchConfig.domainName,
           successUrl,
           failedUrl,
-          5,
+          10,
           'Dakar',
           email,
           clientFirstName,
