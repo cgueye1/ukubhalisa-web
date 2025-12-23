@@ -37,8 +37,7 @@
   </div>
 
   <!-- Task Board -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" *ngIf="!loading">
-    <!-- Task Columns -->
+ <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" *ngIf="!loading">
   <!-- Task Columns -->
 <div 
 *ngFor="let column of columns; trackBy: trackByColumnId"
@@ -71,11 +70,13 @@ class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 min-h-[600px]"
       <!-- Task Cards -->
       <div class="space-y-4">
         <div 
-          *ngFor="let task of column.tasks; trackBy: trackByTaskId"
-          class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer min-h-[280px] w-full"
-          draggable="true"
-          (dragstart)="onDragStart($event, task)"
-          (click)="editTask(task)">
+        *ngFor="let task of column.tasks; trackBy: trackByTaskId"
+        class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-lg transition-all duration-200 cursor-pointer min-h-[280px] w-full"
+        draggable="true"
+        (dragstart)="onDragStart($event, task)"
+        (dragend)="onDragEnd($event)"
+        [ngClass]="{'opacity-50': isDragging && draggedTask?.id === task.id}"
+        (click)="editTask(task)">
           
           <!-- Task Image (if available) -->
           <div *ngIf="task.pictures && task.pictures.length > 0" class="mb-4">

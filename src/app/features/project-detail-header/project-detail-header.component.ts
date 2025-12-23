@@ -1,16 +1,13 @@
 // project-detail-header.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { TaskBoardComponent } from "../task-board/task-board.component";
-import { TeamListComponent } from '../team-list/team-list.component';
-import { DocumentsComponent } from '../documents/documents.component';
-import { LotsSubcontractorsComponent } from '../lots-subcontractors/lots-subcontractors.component';
+// import { TaskBoardComponent } from "../task-board/task-board.component";
+// import { TeamListComponent } from '../team-list/team-list.component';
+
 import { ActivatedRoute } from '@angular/router';
 import { BreadcrumbService } from '../../core/services/breadcrumb-service.service';
-import { StockComponent } from "../components/project/stock/stock.component";
 import { ProjectPresentationComponent } from '../components/project/project-presentation/project-presentation.component';
 import { ProjectAlertComponent } from "../components/project/project-alert/project-alert.component";
-import { EtudeBetComponent } from "../components/project/etude-bet/etude-bet.component";
 import { RealestateService } from '../../core/services/realestate.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import * as QRCode from 'qrcode';
@@ -21,15 +18,11 @@ import { PointingAddressComponent } from "../components/project/pointing-adress/
   standalone: true,
   imports: [
     CommonModule,
-    TaskBoardComponent,
-    TeamListComponent,
-    DocumentsComponent,
-    LotsSubcontractorsComponent,
-    StockComponent,
+    // TaskBoardComponent,
+    // TeamListComponent,
+   
     ProjectPresentationComponent,
     ProjectAlertComponent,
-    EtudeBetComponent,
-    PointingAddressComponent
 ],
   templateUrl: './project-detail-header.component.html',
   styleUrl: './project-detail-header.component.css'

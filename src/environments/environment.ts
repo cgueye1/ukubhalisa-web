@@ -17,7 +17,7 @@ export const environment = {
     
     // Main Auth System (nouveau système)
     auth: 'https://wakana.online/api/v1/auth',
-    user: 'https://wakana.online/api/v1/user',
+    user: 'https://innov.sn/preproduk/api/v1/user',
     
     // Dashboard & KPIs
     tasks: 'https://wakana.online/api/tasks',

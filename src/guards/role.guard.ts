@@ -1,8 +1,18 @@
-// core/guards/role.guard.ts (version améliorée)
 import { Injectable } from '@angular/core';
 import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, Router, UrlTree } from '@angular/router';
 import { Observable } from 'rxjs';
-import { AuthService, profil } from '../app/features/auth/services/auth.service';
+import { AuthService } from '../app/features/auth/services/auth.service';
+
+// Définition locale des profils utilisateur
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  SITE_MANAGER = 'SITE_MANAGER',
+  SUPPLIER = 'SUPPLIER',
+  SUBCONTRACTOR = 'SUBCONTRACTOR',
+  USER = 'USER',
+  BET = 'BET',
+  PROMOTEUR = 'PROMOTEUR'
+}
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +31,7 @@ export class RoleGuard implements CanActivate {
     
     console.log('🔒 RoleGuard - Vérification des rôles pour:', state.url);
     
-    // Vérifier d'abord l'authentification (sécurité supplémentaire)
+    // Vérifier d'abord l'authentification
     if (!this.authService.isAuthenticated()) {
       console.log('❌ RoleGuard - Utilisateur non authentifié');
       return this.router.createUrlTree(['/login'], { 
@@ -38,9 +48,9 @@ export class RoleGuard implements CanActivate {
     }
 
     // Récupérer les rôles requis pour cette route
-    const requiredRoles = route.data['roles'] as profil[];
+    const requiredRoles = route.data['roles'] as string[];
     console.log('📋 Rôles requis:', requiredRoles);
-    console.log('👤 Rôles utilisateur:', user.profil);
+    console.log('👤 Profil utilisateur:', user.profil);
 
     // Si aucun rôle spécifique n'est requis, autoriser l'accès
     if (!requiredRoles || requiredRoles.length === 0) {
@@ -49,14 +59,12 @@ export class RoleGuard implements CanActivate {
     }
 
     // Vérifier si l'utilisateur a au moins un des rôles requis
-    const hasRequiredRole = this.checkUserRoles(user.profil, requiredRoles);
+    const hasRequiredRole = this.checkUserRole(user.profil, requiredRoles);
     
     if (!hasRequiredRole) {
       console.log('❌ RoleGuard - Rôles insuffisants');
       console.log('🔄 Redirection vers /dashboard');
       
-      // Rediriger vers le dashboard si l'utilisateur n'a pas les droits
-      // Vous pourriez aussi créer une page d'erreur 403
       return this.router.createUrlTree(['/dashboard'], { 
         queryParams: { 
           error: 'insufficient_permissions',
@@ -71,37 +79,19 @@ export class RoleGuard implements CanActivate {
 
   /**
    * Vérifie si l'utilisateur a au moins un des rôles requis
-   * Gère les cas où profil peut être un string, un tableau, ou null/undefined
    */
-  private checkUserRoles(userProfiles: string | profil[] | profil | null | undefined, requiredRoles: profil[]): boolean {
-    if (!userProfiles || !requiredRoles || requiredRoles.length === 0) {
+  private checkUserRole(userProfile: string | null | undefined, requiredRoles: string[]): boolean {
+    if (!userProfile || !requiredRoles || requiredRoles.length === 0) {
       return false;
     }
 
-    // Normaliser userProfiles en tableau
-    let profilesArray: profil[] = [];
+    console.log('🔍 Vérification:', {
+      userProfile,
+      requiredRoles
+    });
     
-    if (typeof userProfiles === 'string') {
-      // Si c'est un string, vérifier si c'est un profil valide
-      if (Object.values(profil).includes(userProfiles as profil)) {
-        profilesArray = [userProfiles as profil];
-      }
-    } else if (Array.isArray(userProfiles)) {
-      // Si c'est déjà un tableau, l'utiliser directement
-      profilesArray = userProfiles.filter(profile => 
-        Object.values(profil).includes(profile)
-      );
-    } else if (userProfiles && Object.values(profil).includes(userProfiles)) {
-      // Si c'est un seul profil (enum)
-      profilesArray = [userProfiles];
-    }
-
-    console.log('🔍 Profils normalisés:', profilesArray);
-    
-    // Vérifier s'il y a au moins une correspondance
-    const hasRole = profilesArray.some(profile => 
-      requiredRoles.includes(profile)
-    );
+    // Vérifier si le profil utilisateur correspond à l'un des rôles requis
+    const hasRole = requiredRoles.includes(userProfile);
     
     console.log('🎯 Correspondance trouvée:', hasRole);
     return hasRole;
@@ -110,30 +100,49 @@ export class RoleGuard implements CanActivate {
   /**
    * Méthode utilitaire pour vérifier un rôle spécifique
    */
-  hasRole(userProfiles: string | profil[] | profil | null | undefined, role: profil): boolean {
-    return this.checkUserRoles(userProfiles, [role]);
+  hasRole(userProfile: string | null | undefined, role: string): boolean {
+    return this.checkUserRole(userProfile, [role]);
   }
 
   /**
-   * Méthode utilitaire pour vérifier plusieurs rôles (ET logique)
+   * Méthode utilitaire pour vérifier si l'utilisateur est ADMIN
    */
-  hasAllRoles(userProfiles: string | profil[] | profil | null | undefined, roles: profil[]): boolean {
-    if (!userProfiles || !roles || roles.length === 0) {
-      return false;
-    }
+  isAdmin(): boolean {
+    return this.authService.isADMINProfile();
+  }
 
-    let profilesArray: profil[] = [];
-    
-    if (typeof userProfiles === 'string') {
-      if (Object.values(profil).includes(userProfiles as profil)) {
-        profilesArray = [userProfiles as profil];
-      }
-    } else if (Array.isArray(userProfiles)) {
-      profilesArray = userProfiles;
-    } else if (userProfiles && Object.values(profil).includes(userProfiles)) {
-      profilesArray = [userProfiles];
-    }
+  /**
+   * Méthode utilitaire pour vérifier si l'utilisateur est BET
+   */
+  isBET(): boolean {
+    return this.authService.isBETProfile();
+  }
 
-    return roles.every(role => profilesArray.includes(role));
+  /**
+   * Méthode utilitaire pour vérifier si l'utilisateur est SUPPLIER
+   */
+  isSupplier(): boolean {
+    return this.authService.isSUPPLIERProfile();
+  }
+
+  /**
+   * Méthode utilitaire pour vérifier si l'utilisateur est SITE_MANAGER
+   */
+  isSiteManager(): boolean {
+    return this.authService.isSiteManagerProfile();
+  }
+
+  /**
+   * Méthode utilitaire pour vérifier si l'utilisateur est SUBCONTRACTOR
+   */
+  isSubcontractor(): boolean {
+    return this.authService.isSubcontractorProfile();
+  }
+
+  /**
+   * Méthode utilitaire pour vérifier si l'utilisateur est PROMOTEUR
+   */
+  isPromoteur(): boolean {
+    return this.authService.isPromoteurProfile();
   }
 }

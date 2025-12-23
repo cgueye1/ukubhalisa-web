@@ -1,1238 +1,237 @@
-import { Component, OnInit, signal, inject, OnDestroy } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { AuthService, User } from '../auth/services/auth.service';
-import { SubscriptionService, Invoice, InvoiceResponse, SubscriptionPlan, UserSubscription } from '../../../services/subscription.service';
-import { ActivatedRoute, Router } from '@angular/router';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { environment } from '../../../environments/environment';
- 
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { AuthService } from '../../features/auth/services/auth.service';
+import { Router } from '@angular/router';
+
 @Component({
   selector: 'app-compte',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './compte.component.html',
-  styleUrls: ['./compte.component.css']
+  styleUrls: ['./compte.component.scss']
 })
-export class CompteComponent implements OnInit, OnDestroy {
-  // Constante pour le répertoire de base des photos
-
-  
-  activeTab = signal<'informations' | 'abonnements' | 'factures'>('informations');
-  userForm!: FormGroup;
-  currentUser = signal<User | null>(null);
-  isLoading = signal(false);
+export class CompteComponent implements OnInit {
+  // Signals pour la gestion de l'état
+  activeTab = signal<'informations'>('informations');
   isSaving = signal(false);
-  
-  // Messages de notification
-  successMessage = signal<string | null>(null);
-  errorMessage = signal<string | null>(null);
-  infoMessage = signal<string | null>(null);
-
-  // Gestion de l'abonnement actif
-  hasActiveSubscription = signal(false);
-  isCheckingSubscription = signal(false);
-  currentSubscription = signal<UserSubscription | null>(null);
-  photoLoadError = signal(false);
-
-  // Gestion de la photo de profil
-  selectedPhotoFile = signal<File | null>(null);
-  photoPreviewUrl = signal<string | null>(null);
   isUploadingPhoto = signal(false);
+  selectedPhotoFile = signal<File | null>(null);
+  photoError = signal(false);
 
-  // Plans d'abonnement
-  subscriptionPlans = signal<SubscriptionPlan[]>([]);
-  isLoadingPlans = signal(false);
-  premiumPlan = signal<SubscriptionPlan | null>(null);
-  basicPlan = signal<SubscriptionPlan | null>(null);
-  isYearlyBilling = signal(false);
+  // Formulaire
+  userForm!: FormGroup;
 
-  // Factures dynamiques
-  factures = signal<Invoice[]>([]);
-  totalFactures = signal(0);
-  currentPage = signal(0);
-  pageSize = 5;
-  totalPages = signal(0);
-  isLoadingFactures = signal(false);
+  // URL de base pour les images
+  private baseUrl = 'https://wakana.online/repertoire_samater/';
 
-  // État du traitement de paiement
-  isProcessingBasic = signal(false);
-  isProcessingPremium = signal(false);
+  constructor(
+    private fb: FormBuilder,
+    public authService: AuthService,
+    private router: Router
+  ) {}
 
-  // Gestion du script OneTouch
-  private oneTouchCheckInterval: any;
-  private oneTouchLoaded = signal(false);
-  private maxOneTouchAttempts = 30;
-
-  private fb = inject(FormBuilder);
-  public authService = inject(AuthService);
-  private subscriptionService = inject(SubscriptionService);
-// Dans compte.component.ts, ajouter cette logique dans ngOnInit() :
-private route = inject(ActivatedRoute);
-private router = inject(Router);
-ngOnInit(): void {
-  this.initializeForm();
-  this.loadUserData();
-  this.loadOneTouchScript();
-  this.startOneTouchMonitoring();
-  
-  // ✅ GÉRER LE RETOUR DE PAIEMENT EN PRIORITÉ
-  this.handlePaymentReturn();
-  
-  // ✅ VÉRIFIER SI ON VIENT D'UNE INTENTION D'ABONNEMENT
-  const targetTab = sessionStorage.getItem('compte_tab');
-  
-  if (targetTab === 'abonnements') {
-    console.log('🎯 Ouverture automatique de l\'onglet Abonnements');
-    this.activeTab.set('abonnements');
-    
-    // Nettoyer le sessionStorage après utilisation
-    sessionStorage.removeItem('compte_tab');
-  }
-}
-
-/**
- * ✨ NOUVELLE MÉTHODE : Gère le retour après paiement OneTouch
- */
-private handlePaymentReturn(): void {
-  // Écouter les changements de paramètres d'URL
-  this.route.queryParams.subscribe(params => {
-    const paymentStatus = params['payment'];
-    
-    if (!paymentStatus) {
-      return; // Pas de retour de paiement
-    }
-    
-    console.log('💳 Détection de retour de paiement:', paymentStatus);
-    
-    if (paymentStatus === 'success') {
-      console.log('✅ Retour de paiement réussi');
-      
-      const userId = params['userId'];
-      const planId = params['planId'];
-      const months = params['months'];
-      
-      if (userId && planId && months) {
-        // Afficher un message de succès
-        this.showSuccess('🎉 Paiement effectué avec succès ! Votre abonnement est maintenant actif.');
-        
-        // Ouvrir l'onglet abonnements
-        this.activeTab.set('abonnements');
-        
-        // Recharger les données d'abonnement après un court délai
-        setTimeout(() => {
-          const user = this.currentUser();
-          if (user) {
-            console.log('🔄 Rechargement des données d\'abonnement...');
-            this.checkUserSubscription(user.id);
-            this.loadFactures(user.id);
-          }
-        }, 1000);
-      }
-      
-      // Nettoyer l'URL
-      this.cleanUrl();
-      
-    } else if (paymentStatus === 'failed') {
-      console.log('❌ Paiement échoué');
-      this.showError('❌ Le paiement a échoué. Veuillez réessayer ou contacter le support.');
-      
-      // Ouvrir l'onglet abonnements
-      this.activeTab.set('abonnements');
-      
-      // Nettoyer l'URL
-      this.cleanUrl();
-      
-    } else if (paymentStatus === 'cancelled') {
-      console.log('⚠️ Paiement annulé');
-      this.showError('⚠️ Le paiement a été annulé. Vous pouvez réessayer quand vous le souhaitez.');
-      
-      // Ouvrir l'onglet abonnements
-      this.activeTab.set('abonnements');
-      
-      // Nettoyer l'URL
-      this.cleanUrl();
-    }
-  });
-}
-/**
- * ✨ NOUVELLE MÉTHODE : Nettoie les paramètres de l'URL sans recharger la page
- */
-private cleanUrl(): void {
-  // Navigation vers la même route sans les query params
-  this.router.navigate([], {
-    relativeTo: this.route,
-    queryParams: {},
-    queryParamsHandling: 'merge',
-    replaceUrl: true
-  });
-  
-  console.log('🧹 URL nettoyée');
-}
-
-  private loadOneTouchScript(): void {
-    const existingScript = document.querySelector('script[src*="form.js"]');
-    
-    if (!existingScript) {
-      console.log('📥 Chargement manuel du script OneTouch...');
-      
-      const script = document.createElement('script');
-      script.src = 'https://test.solinusteam.com/Scripts/form.js';
-      script.type = 'text/javascript';
-      
-      script.onload = () => {
-        console.log('✅ Script OneTouch chargé manuellement avec succès');
-        this.oneTouchLoaded.set(true);
-      };
-      
-      script.onerror = (error) => {
-        console.error('❌ Erreur chargement manuel du script OneTouch:', error);
-      };
-      
-      document.head.appendChild(script);
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.stopOneTouchMonitoring();
-    // Nettoyer l'URL de prévisualisation
-    if (this.photoPreviewUrl()) {
-      URL.revokeObjectURL(this.photoPreviewUrl()!);
-    }
-  }
-
-  private startOneTouchMonitoring(): void {
-    console.log('🔍 Début de la surveillance du script OneTouch...');
-    
-    let attempts = 0;
-    
-    this.oneTouchCheckInterval = setInterval(() => {
-      attempts++;
-      
-      if (this.isOneTouchScriptLoaded()) {
-        console.log('✅ Script OneTouch chargé avec succès');
-        this.oneTouchLoaded.set(true);
-        this.stopOneTouchMonitoring();
-        return;
-      }
-      
-      if (attempts >= this.maxOneTouchAttempts) {
-        console.warn('⚠️ Script OneTouch non chargé après 15 secondes');
-        this.stopOneTouchMonitoring();
-        return;
-      }
-      
-      if (attempts % 5 === 0) {
-        console.log(`⏳ Attente du script OneTouch... (${attempts}/${this.maxOneTouchAttempts})`);
-      }
-    }, 500);
-  }
-
-  private stopOneTouchMonitoring(): void {
-    if (this.oneTouchCheckInterval) {
-      clearInterval(this.oneTouchCheckInterval);
-      this.oneTouchCheckInterval = null;
-    }
-  }
-  telechargerFacturePDF(facture: Invoice): void {
-    const html = this.construireHTMLFacture(facture);
-   
-    // créer un conteneur caché
-    const container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '-99999px';
-    container.style.width = '794px'; // ≈ 210mm pour taille A4
-    container.style.padding = '20px';
-    container.style.background = '#ffffff';
-    container.innerHTML = html;
-    document.body.appendChild(container);
-   
-    // 👉 Injecter Tailwind (important)
-    const style = document.createElement('link');
-    style.rel = 'stylesheet';
-    style.href = 'https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css';
-    container.appendChild(style);
-   
-    // attendre le chargement du style
-    style.onload = () => {
-      html2canvas(container, {
-        scale: 2, // 👍 meilleure qualité du PDF
-        useCORS: true // utile si images
-      }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-   
-        // calcul taille automatiquement
-        const imgWidth = 210;
-        const pageHeight = 297;
-        let imgHeight = canvas.height * imgWidth / canvas.width;
-        let heightLeft = imgHeight;
-        let position = 0;
-   
-        // 💡 Gestion multi-pages si contenu dépasse une page
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-   
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-        }
-   
-        pdf.save(`facture-${facture.invoiceNumber}.pdf`);
-        document.body.removeChild(container);
-      });
-    };
-  }
-  private genererFacturePDF(facture: Invoice, printWindow: Window): void {
-    const htmlContent = this.construireHTMLFacture(facture);
-   
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html lang="fr">
-      <head>
-        <meta charset="UTF-8">
-        <title>Facture ${facture.invoiceNumber}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-        <style>
-          body { font-family: 'Inter', sans-serif; margin:0; padding:0; background:white; }
-          @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            @page { margin: 0; }
-          }
-        </style>
-      </head>
-      <body>
-        ${htmlContent}
-        <script>
-    function waitForReady() {
-      const hasContent = document.body.innerHTML.length > 1000; // Vérifier si le contenu est chargé
-      const tailwindLoaded = window.tailwind !== undefined;     // Vérifier si Tailwind est chargé
-     
-      if (hasContent && tailwindLoaded) {
-        setTimeout(() => window.print(), 800); // Délai avant impression
-      } else {
-        setTimeout(waitForReady, 400); // Réessayer tant que non prêt
-      }
-    }
-   
-    window.onload = () => {
-      setTimeout(waitForReady, 500); // On attend un peu
-    };
-   
-    // ❌ ON DÉSACTIVE TOUTE FERMETURE
-    window.onafterprint = null;
-  </script>
-   
-      </body>
-      </html>
-    `);
-   
-    printWindow.document.close();
-  }
-  private construireHTMLFacture(facture: Invoice): string {
-      const formatDate = (date: string) =>
-        new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
-   
-      const formatAmount = (amount: number) =>
-        new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(amount);
-   
-      const user = this.authService.currentUser();
-      const sousTotal = facture.amount || 0;
-      const tva = sousTotal * 0.18;
-      const totalTTC = sousTotal + tva;
-   
-      return `
-        <div class="min-h-screen bg-white p-10">
-          <div class="max-w-4xl mx-auto">
-            <!-- Bande orange -->
-            <div class="bg-gradient-to-r from-[#FF5C02] to-[#FF7A33] h-3 rounded-t-lg"></div>
-   
-            <div class="border-2 border-gray-200 rounded-b-lg p-12 bg-white">
-              <!-- Header -->
-              <div class="flex justify-between items-start mb-12 pb-8 border-b-2 border-gray-100">
-                <div class="flex items-center gap-6">
-                  <div class="w-24 h-24 rounded-xl overflow-hidden border border-gray-200">
-    <img src="assets/images/btp.png" alt="Logo BTP" class="w-full h-full object-cover" crossOrigin="anonymous">
-  </div>
-   
-                  <div>
-                    <h1 class="text-3xl font-bold">BTP</h1>
-                    <p class="text-gray-600">La solution complète</p>
-                    <p class="text-sm text-gray-500">Dakar, Sénégal • contact@BTP.sn</p>
-                  </div>
-                </div>
-   
-                <div class="text-right">
-                  <div class="inline-block bg-[#FF5C02] text-white px-4 py-2 rounded-lg mb-4">
-                    <p class="text-sm font-medium">FACTURE</p>
-                  </div>
-                  <p class="text-2xl font-bold">${facture.invoiceNumber}</p>
-                  <p class="text-sm text-gray-600">Date d'émission : ${formatDate(facture.createdAt)}</p>
-                  ${facture.paid
-                    ? `<span class="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">PAYÉE</span>`
-                    : `<span class="inline-flex items-center gap-2 mt-3 px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">EN ATTENTE</span>`}
-                </div>
-              </div>
-   
-              <!-- Client -->
-              <div class="mb-12">
-                <h2 class="text-lg font-semibold mb-4">Facturé à</h2>
-                <div class="bg-gray-50 p-6 rounded-xl border">
-                  <p class="text-xl font-bold">${user?.prenom || ''} ${user?.nom || ''}</p>
-                  ${user?.company?.name ? `<p class="font-medium mt-2">${user.company.name}</p>` : ''}
-                  <div class="text-sm text-gray-600 mt-3 space-y-1">
-                    <p>${user?.email || ''}</p>
-                    <p>${user?.telephone || ''}</p>
-                    <p>${user?.adress || ''}</p>
-                  </div>
-                </div>
-              </div>
-   
-              <!-- Tableau abonnement -->
-              <div class="mb-8">
-                <h2 class="text-lg font-semibold mb-4">Détails de l'abonnement</h2>
-                <table class="w-full border-collapse">
-                  <thead>
-                    <tr class="bg-gradient-to-r from-[#FF5C02] to-[#FF7A33] text-white">
-                      <th class="text-left p-4">Description</th>
-                      <th class="text-center p-4">Période</th>
-                      <th class="text-right p-4">Montant HT</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr class="bg-gray-50">
-                      <td class="p-5">
-                        <span class="font-semibold">${facture.planLabel || 'Abonnement'}</span><br>
-                        <span class="text-sm text-gray-600">Abonnement annuel</span>
-                      </td>
-                  
-                      <td class="text-right p-5 font-semibold">${formatAmount(sousTotal)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-   
-              <!-- Résumé -->
-              <div class="flex justify-end">
-                <div class="w-96 space-y-3">
-                  <div class="flex justify-between"><span>Sous-total HT :</span><span>${formatAmount(sousTotal)}</span></div>
-                 
-                  <div class="border-t-2 border-gray-300 my-2"></div>
-                  <div class="flex justify-between text-xl font-bold text-[#FF5C02]">
-                    <span>Total TTC :</span>
-                    <span>${formatAmount(sousTotal)}</span>
-                  </div>
-                </div>
-              </div>
-   
-              <!-- Footer -->
-              <div class="text-center text-sm text-gray-500 mt-16">
-                <p>BTP © 2025 • Document généré électroniquement – Aucune signature requise</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-  }
-
-  private isOneTouchScriptLoaded(): boolean {
-    return typeof (window as any).sendPaymentInfos === 'function';
+  ngOnInit(): void {
+    this.initializeForm();
+    this.loadUserData();
   }
 
   private initializeForm(): void {
     this.userForm = this.fb.group({
       prenom: ['', [Validators.required, Validators.minLength(2)]],
       nom: ['', [Validators.required, Validators.minLength(2)]],
-      telephone: ['', [Validators.required, Validators.pattern(/^[0-9\s\-\+\(\)]+$/)]],
+      telephone: ['', [Validators.required, Validators.pattern(/^[0-9]{9,}$/)]],
       email: ['', [Validators.required, Validators.email]],
-      adress: [''],
-      company: ['']
+      adress: ['']
     });
   }
 
   private loadUserData(): void {
-    this.isLoading.set(true);
     const user = this.authService.currentUser();
-
     if (user) {
-      this.currentUser.set(user);
-      this.populateForm(user);
-      this.loadFactures(user.id);
-      this.checkUserSubscription(user.id);
-      this.isLoading.set(false);
-    } else {
-      this.authService.getCurrentUser().subscribe({
-        next: (user) => {
-          if (user) {
-            this.currentUser.set(user);
-            this.populateForm(user);
-            this.loadFactures(user.id);
-            this.checkUserSubscription(user.id);
-          }
-          this.isLoading.set(false);
-        },
-        error: (error) => {
-          console.error('Erreur chargement utilisateur:', error);
-          this.showError('Impossible de charger les informations utilisateur');
-          this.isLoading.set(false);
-        }
+      this.userForm.patchValue({
+        prenom: user.prenom || '',
+        nom: user.nom || '',
+        telephone: user.telephone || '',
+        email: user.email || '',
+        adress: user.adress || ''
       });
     }
   }
 
-  /**
-   * Vérifie si l'utilisateur est un administrateur
-   */
-  isAdmin(): boolean {
-    const user = this.currentUser();
-    if (!user) return false;
-    
-    let userProfile = '';
-    
-    if (Array.isArray(user.profil) && user.profil.length > 0) {
-      userProfile = user.profil[0];
-    } 
-    else if (user.profils && typeof user.profils === 'string') {
-      userProfile = user.profils;
-    }
-    else if (typeof user.profil === 'string') {
-      userProfile = user.profil as any;
-    }
-    
-    return userProfile.toUpperCase() === 'ADMIN';
+  // Gestion des onglets
+  setActiveTab(tab: 'informations'): void {
+    this.activeTab.set(tab);
   }
 
-  /**
-   * Gestion de la sélection de fichier photo
-   */
+  // Gestion de la photo de profil
+  triggerPhotoInput(): void {
+    const input = document.getElementById('photoInput') as HTMLInputElement;
+    input?.click();
+  }
+
   onPhotoSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      
-      // Vérifier le type de fichier
+    const file = input.files?.[0];
+
+    if (file) {
+      // Vérification du type de fichier
       if (!file.type.startsWith('image/')) {
-        this.showError('Veuillez sélectionner une image valide');
+        alert('Veuillez sélectionner une image valide');
         return;
       }
-      
-      // Vérifier la taille (max 5MB)
+
+      // Vérification de la taille (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        this.showError('La taille de l\'image ne doit pas dépasser 5 MB');
+        alert('La taille de l\'image ne doit pas dépasser 5MB');
         return;
       }
-      
+
       this.selectedPhotoFile.set(file);
-      
-      // Créer une prévisualisation
-      const reader = new FileReader();
-      reader.onload = (e: ProgressEvent<FileReader>) => {
-        if (e.target?.result) {
-          this.photoPreviewUrl.set(e.target.result as string);
-          this.photoLoadError.set(false);
-        }
-      };
-      reader.readAsDataURL(file);
-      
-      this.showInfo('Photo sélectionnée. Cliquez sur "Mettre à jour" pour sauvegarder.');
+      console.log('📸 Photo sélectionnée:', file.name);
     }
   }
 
-  /**
-   * Déclenche le sélecteur de fichier
-   */
-  triggerPhotoInput(): void {
-    const fileInput = document.getElementById('photoInput') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.click();
+  getUserPhotoUrl(): string {
+    const user = this.authService.currentUser();
+    if (user?.photo) {
+      return `${this.baseUrl}${user.photo}?t=${new Date().getTime()}`;
     }
+    return 'assets/images/profil.png';
   }
 
-  /**
-   * Gère l'erreur de chargement de la photo
-   */
-  onPhotoError(): void {
-    console.warn('Erreur lors du chargement de la photo de profil');
-    this.photoLoadError.set(true);
-  }
-
-  /**
-   * Réinitialise l'erreur de photo
-   */
-  resetPhotoError(): void {
-    this.photoLoadError.set(false);
-  }
-
-  /**
-   * Obtient les initiales de l'utilisateur
-   */
-  getUserInitials(): string {
-    const user = this.currentUser();
-    if (!user) return 'U';
-    
-    const firstInitial = user.prenom?.charAt(0)?.toUpperCase() || '';
-    const lastInitial = user.nom?.charAt(0)?.toUpperCase() || '';
-    
-    return `${firstInitial}${lastInitial}` || 'U';
-  }
-
-  /**
-   * Vérifie si l'utilisateur a une photo de profil valide
-   */
   hasUserPhoto(): boolean {
-    // Priorité à la prévisualisation si disponible
-    if (this.photoPreviewUrl()) {
-      return true;
+    const user = this.authService.currentUser();
+    return !this.photoError() && user?.photo !== null && user?.photo !== undefined && user?.photo !== '';
+  }
+
+  onPhotoError(): void {
+    console.warn('Erreur de chargement de la photo');
+    this.photoError.set(true);
+  }
+
+  resetPhotoError(): void {
+    this.photoError.set(false);
+  }
+
+  // Validation des champs
+  isFieldInvalid(fieldName: string): boolean {
+    const field = this.userForm.get(fieldName);
+    return !!(field && field.invalid && field.touched);
+  }
+
+  getFieldError(fieldName: string): string {
+    const field = this.userForm.get(fieldName);
+    if (!field || !field.errors) return '';
+
+    if (field.errors['required']) {
+      return 'Ce champ est requis';
     }
-    
-    const user = this.currentUser();
-    return !!(user?.photo) && !this.photoLoadError();
+    if (field.errors['email']) {
+      return 'Email invalide';
+    }
+    if (field.errors['minlength']) {
+      return `Minimum ${field.errors['minlength'].requiredLength} caractères`;
+    }
+    if (field.errors['pattern']) {
+      return 'Format invalide';
+    }
+    return 'Champ invalide';
   }
 
-/**
- * Obtient l'URL complète de la photo de profil
- */
-getUserPhotoUrl(): string {
-  // Priorité à la prévisualisation si disponible
-  if (this.photoPreviewUrl()) {
-    return this.photoPreviewUrl()!;
-  }
-  
-  const user = this.currentUser();
-  if (user?.photo && !this.photoLoadError()) {
-    // ✅ Utiliser environment.filebaseUrl au lieu de PHOTO_BASE_URL
-    return `${environment.filebaseUrl}${user.photo}`;
-  }
-  return '';
-}
+  // Soumission du formulaire
+  onSubmit(): void {
+    if (this.userForm.invalid && !this.selectedPhotoFile()) {
+      this.userForm.markAllAsTouched();
+      return;
+    }
 
-  /**
-   * Vérifie si l'utilisateur a un abonnement actif
-   */
-  private checkUserSubscription(userId: number): void {
-    console.log('🔍 Vérification de l\'abonnement pour userId:', userId);
-    this.isCheckingSubscription.set(true);
+    this.isSaving.set(true);
 
-    this.subscriptionService.seeActive(userId).subscribe({
-      next: (isActive: boolean) => {
-        console.log('✅ Statut abonnement actif:', isActive);
-        this.hasActiveSubscription.set(isActive);
+    const user = this.authService.currentUser();
+    if (!user) {
+      console.error('❌ Utilisateur non connecté');
+      this.isSaving.set(false);
+      return;
+    }
+
+    // Créer FormData pour envoyer les données + photo
+    const formData = new FormData();
+
+    // Ajouter les données du formulaire
+    if (this.userForm.dirty) {
+      formData.append('nom', this.userForm.get('nom')?.value || '');
+      formData.append('prenom', this.userForm.get('prenom')?.value || '');
+      formData.append('email', this.userForm.get('email')?.value || '');
+      formData.append('telephone', this.userForm.get('telephone')?.value || '');
+      formData.append('adress', this.userForm.get('adress')?.value || '');
+    }
+
+    // Ajouter la photo si sélectionnée
+    const photoFile = this.selectedPhotoFile();
+    if (photoFile) {
+      formData.append('photo', photoFile, photoFile.name);
+    }
+
+    // Appel à l'API de mise à jour
+    // this.authService.updateUserWithFormData(user.id, formData).subscribe({
+    //   next: (updatedUser) => {
+    //     console.log('✅ Profil mis à jour avec succès:', updatedUser);
+    //     this.isSaving.set(false);
+    //     this.selectedPhotoFile.set(null);
+    //     this.userForm.markAsPristine();
         
-        if (isActive) {
-          this.loadCurrentSubscription(userId);
-        } else {
-          const user = this.currentUser();
-          if (user) {
-            this.loadSubscriptionPlans(user);
-          }
-        }
+    //     // Recharger les données utilisateur
+    //     this.loadUserData();
         
-        this.isCheckingSubscription.set(false);
-      },
-      error: (error) => {
-        console.error('❌ Erreur vérification abonnement:', error);
-        this.hasActiveSubscription.set(false);
-        this.isCheckingSubscription.set(false);
-        
-        const user = this.currentUser();
-        if (user) {
-          this.loadSubscriptionPlans(user);
-        }
-      }
-    });
+    //     alert('Profil mis à jour avec succès !');
+    //   },
+    //   error: (error) => {
+    //     console.error('❌ Erreur lors de la mise à jour:', error);
+    //     this.isSaving.set(false);
+    //     alert('Erreur lors de la mise à jour du profil. Veuillez réessayer.');
+    //   }
+    // });
   }
 
-  /**
-   * Charge les détails de l'abonnement en cours
-   */
-  private loadCurrentSubscription(userId: number): void {
-    console.log('📥 Chargement de l\'abonnement en cours...');
-    
-    this.subscriptionService.getSubscriptionByUser(userId).subscribe({
-      next: (subscription: UserSubscription) => {
-        console.log('✅ Abonnement en cours récupéré:', subscription);
-        this.currentSubscription.set(subscription);
-      },
-      error: (error) => {
-        console.error('❌ Erreur chargement abonnement en cours:', error);
-        this.showError('Impossible de charger les détails de votre abonnement');
-      }
-    });
+  onCancel(): void {
+    this.loadUserData();
+    this.selectedPhotoFile.set(null);
+    this.userForm.markAsPristine();
   }
 
-  getExpirationDate(): string {
-    const subscription = this.currentSubscription();
-    if (!subscription || !subscription.endDate) {
-      return 'Non disponible';
-    }
-   
-    try {
-      const date = new Date(subscription.endDate);
-     
-      if (isNaN(date.getTime())) {
-        return 'Non disponible';
-      }
-   
-      // Format: "09/12/2025"
-      return date.toLocaleDateString('fr-FR');
-    } catch (error) {
-      console.error('Erreur lors du formatage de la date:', error);
-      return 'Non disponible';
-    }
-  }
-   
-
-  getSubscriptionPeriod(): string {
-    const subscription = this.currentSubscription();
-    if (!subscription || !subscription.createdAt) {
-      return 'Non disponible';
-    }
-    
-    const startDate = new Date(subscription.createdAt);
-    const endDate = new Date(subscription.createdAt);
-    endDate.setMonth(endDate.getMonth() + 1);
-    
-    const formatDate = (date: Date) => date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-    
-    return `Du ${formatDate(startDate)} au ${formatDate(endDate)}`;
-  }
-
-  getCurrentPlanName(): string {
-    const subscription = this.currentSubscription();
-    return subscription?.subscriptionPlan?.name || 'N/A';
-  }
-
-  getCurrentPlanLabel(): string {
-    const subscription = this.currentSubscription();
-    return subscription?.subscriptionPlan?.label || 'N/A';
-  }
-
-  getCurrentPlanAmount(): string {
-    const subscription = this.currentSubscription();
-    if (!subscription?.subscriptionPlan?.totalCost) {
-      return '0 F CFA';
-    }
-    return `${subscription.subscriptionPlan.totalCost.toLocaleString('fr-FR')} F CFA`;
-  }
-
-  getPaymentMethod(): string {
-    return 'Carte bancaire';
-  }
-
-  isUnlimitedProjects(): boolean {
-    const subscription = this.currentSubscription();
-    return subscription?.subscriptionPlan?.unlimitedProjects || false;
-  }
-
-  getProjectLimit(): number {
-    const subscription = this.currentSubscription();
-    return subscription?.subscriptionPlan?.projectLimit || 0;
-  }
-
-  getInstallmentCount(): number {
-    const subscription = this.currentSubscription();
-    return subscription?.subscriptionPlan?.installmentCount || 1;
-  }
-
-  private populateForm(user: User): void {
-    this.userForm.patchValue({
-      prenom: user.prenom,
-      nom: user.nom,
-      telephone: user.telephone,
-      email: user.email,
-      adress: user.adress,
-      company: user.company?.name || ''
-    });
-  }
-
-  setActiveTab(tab: 'informations' | 'abonnements' | 'factures'): void {
-    this.activeTab.set(tab);
-    
-    if (tab === 'factures' && this.currentUser()) {
-      this.loadFactures(this.currentUser()!.id);
-    }
-    
-    if (tab === 'abonnements' && this.currentUser()) {
-      this.checkUserSubscription(this.currentUser()!.id);
-    }
-  }
-
-  getPageTitle(): string {
-    const titles = {
-      'informations': 'Informations personnelles',
-      'abonnements': 'Abonnements',
-      'factures': 'Factures'
-    };
-    return titles[this.activeTab()];
-  }
-
+  // Getters pour le template
   getUserFullName(): string {
-    const user = this.currentUser();
+    const user = this.authService.currentUser();
     if (!user) return 'Utilisateur';
     return `${user.prenom} ${user.nom}`;
   }
 
   getUserProfile(): string {
-    const user = this.currentUser();
-    if (!user) return 'Utilisateur';
-    
-    let profile = '';
-    
-    if (Array.isArray(user.profil) && user.profil.length > 0) {
-      profile = user.profil[0];
-    } 
-    else if (user.profils && typeof user.profils === 'string') {
-      profile = user.profils;
-    }
-    else if (typeof user.profil === 'string') {
-      profile = user.profil as any;
-    }
-    
-    return profile ? this.formatProfileName(profile) : 'Utilisateur';
-  }
-
-  private formatProfileName(profile: string): string {
-    const profileMap: { [key: string]: string } = {
-      'SITE_MANAGER': 'Manager',
+    const profileTranslations: { [key: string]: string } = {
+      'SITE_MANAGER': 'Gestionnaire de Site',
       'SUBCONTRACTOR': 'Sous-traitant',
       'SUPPLIER': 'Fournisseur',
       'ADMIN': 'Administrateur',
       'BET': 'Bureau d\'études',
-      'USER': 'Utilisateur'
+      'USER': 'Utilisateur',
+      'PROMOTEUR': 'Promoteur',
+      'MOA': 'Maître d\'Ouvrage'
     };
+
+    const user = this.authService.currentUser();
+    if (!user || !user.profil) return 'Utilisateur';
+
+    return profileTranslations[user.profil] || user.profil;
+  }
+
+  getUserInitials(): string {
+    const user = this.authService.currentUser();
+    if (!user) return 'U';
+
+    const firstInitial = user.prenom?.charAt(0)?.toUpperCase() || '';
+    const lastInitial = user.nom?.charAt(0)?.toUpperCase() || '';
     
-    return profileMap[profile] || profile;
-  }
-
-  private loadSubscriptionPlans(user: User): void {
-    this.isLoadingPlans.set(true);
-    
-    let userProfile = '';
-    
-    if (Array.isArray(user.profil) && user.profil.length > 0) {
-      userProfile = user.profil[0];
-    } 
-    else if (user.profils && typeof user.profils === 'string') {
-      userProfile = user.profils;
-    }
-    else if (typeof user.profil === 'string') {
-      userProfile = user.profil as any;
-    }
-
-    console.log('🔍 Profil utilisateur détecté:', userProfile);
-
-    if (!userProfile) {
-      console.error('❌ Aucun profil trouvé pour l\'utilisateur');
-      this.showError('Impossible de déterminer votre profil utilisateur');
-      this.isLoadingPlans.set(false);
-      return;
-    }
-
-    this.subscriptionService.getPlanSubscription(userProfile).subscribe({
-      next: (plans: SubscriptionPlan[]) => {
-        console.log('✅ Plans reçus:', plans);
-        this.subscriptionPlans.set(plans);
-        
-        const premium = plans.find(plan => 
-          plan.label?.toUpperCase() === 'PREMIUM' || 
-          plan.name?.toUpperCase() === 'PREMIUM'
-        );
-        const basic = plans.find(plan => 
-          plan.label?.toUpperCase() === 'BASIC' || 
-          plan.name?.toUpperCase() === 'BASIC'
-        );
-        
-        this.premiumPlan.set(premium || null);
-        this.basicPlan.set(basic || null);
-        
-        this.isLoadingPlans.set(false);
-      },
-      error: (error) => {
-        console.error('❌ Erreur chargement plans:', error);
-        this.showError('Impossible de charger les plans d\'abonnement');
-        this.isLoadingPlans.set(false);
-      }
-    });
-  }
-
-  toggleBillingPeriod(): void {
-    this.isYearlyBilling.set(!this.isYearlyBilling());
-  }
-
-  calculatePrice(plan: SubscriptionPlan): number {
-    if (!this.isYearlyBilling()) {
-      return plan.totalCost;
-    }
-    
-    if (plan.yearlyDiscountRate > 0) {
-      const yearlyPrice = plan.totalCost * 12;
-      const discount = yearlyPrice * (plan.yearlyDiscountRate / 100);
-      return Math.round((yearlyPrice - discount) / 12);
-    }
-    
-    return plan.totalCost;
-  }
-
-  formatPrice(plan: SubscriptionPlan): string {
-    const price = this.calculatePrice(plan);
-    return price.toLocaleString('fr-FR');
-  }
-
-  getPlanLabel(plan: SubscriptionPlan): string {
-    return plan.label || plan.name || 'Plan';
-  }
-
-  getPlanDescription(plan: SubscriptionPlan): string {
-    if (plan.description) {
-      return plan.description;
-    }
-    
-    if (plan.label === 'BASIC') {
-      return 'Plan de base pour démarrer votre projet';
-    } else if (plan.label === 'PREMIUM') {
-      return 'Plan complet avec toutes les fonctionnalités avancées';
-    }
-    
-    return 'Plan d\'abonnement';
-  }
-
-  async subscribeToPlan(planName: string): Promise<void> {
-    const user = this.currentUser();
-    
-    if (!user) {
-      this.showError('Vous devez être connecté pour souscrire à un abonnement');
-      return;
-    }
-
-    if (!user.email || !user.prenom || !user.nom || !user.telephone) {
-      this.showError('Vos informations de profil sont incomplètes. Veuillez compléter votre profil avant de souscrire.');
-      return;
-    }
-
-    const plan = planName === 'Premium' ? this.premiumPlan() : this.basicPlan();
-    
-    if (!plan) {
-      this.showError('Plan non disponible');
-      return;
-    }
-
-    if (planName === 'Premium') {
-      this.isProcessingPremium.set(true);
-    } else {
-      this.isProcessingBasic.set(true);
-    }
-    
-    try {
-      if (!this.isOneTouchScriptLoaded()) {
-        this.showError(
-          'Le système de paiement n\'est pas disponible. ' +
-          'Veuillez rafraîchir la page et réessayer.'
-        );
-        return;
-      }
-
-      this.showInfo('Redirection vers la page de paiement...');
-
-      await this.subscriptionService.initiateSubscriptionPayment(
-        user,
-        plan,
-        this.isYearlyBilling()
-      );
-      
-    } catch (error: any) {
-      console.error('❌ Erreur lors de la souscription:', error);
-      this.showError(error.message || 'Une erreur est survenue');
-      
-    } finally {
-      if (planName === 'Premium') {
-        this.isProcessingPremium.set(false);
-      } else {
-        this.isProcessingBasic.set(false);
-      }
-    }
-  }
-
-  loadFactures(userId: number, page: number = 0): void {
-    this.isLoadingFactures.set(true);
-    this.currentPage.set(page);
-    
-    this.subscriptionService.getFactures(userId, page, this.pageSize).subscribe({
-      next: (response: InvoiceResponse) => {
-        this.factures.set(response.content);
-        this.totalFactures.set(response.totalElements);
-        this.totalPages.set(response.totalPages);
-        this.isLoadingFactures.set(false);
-      },
-      error: (error) => {
-        console.error('Erreur chargement factures:', error);
-        this.showError('Impossible de charger les factures');
-        this.factures.set([]);
-        this.isLoadingFactures.set(false);
-      }
-    });
-  }
-
-  getFilteredFactures(): Invoice[] {
-    return this.factures();
-  }
-
-  formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  }
-
-  formatMontant(amount: number): string {
-    return `${amount.toLocaleString('fr-FR')} F CFA`;
-  }
-
-  goToPage(page: number): void {
-    if (page >= 0 && page < this.totalPages() && this.currentUser()) {
-      this.loadFactures(this.currentUser()!.id, page);
-    }
-  }
-
-  goToNextPage(): void {
-    if (this.currentPage() < this.totalPages() - 1) {
-      this.goToPage(this.currentPage() + 1);
-    }
-  }
-
-  goToPreviousPage(): void {
-    if (this.currentPage() > 0) {
-      this.goToPage(this.currentPage() - 1);
-    }
-  }
-
-  getPageInfo(): string {
-    const start = this.currentPage() * this.pageSize + 1;
-    const end = Math.min((this.currentPage() + 1) * this.pageSize, this.totalFactures());
-    return `${start} - ${end} sur ${this.totalFactures()}`;
-  }
-
-  payerFacture(id: string): void {
-    this.showInfo('Redirection vers le paiement...');
-  }
-
-  telechargerFacture(id: number): void {
-    this.showInfo('Téléchargement en cours...');
-  }
-
-  onSubmit(): void {
-    if (this.userForm.invalid) {
-      this.showError('Veuillez remplir correctement tous les champs requis');
-      Object.keys(this.userForm.controls).forEach(key => {
-        const control = this.userForm.get(key);
-        if (control?.invalid) {
-          control.markAsTouched();
-        }
-      });
-      return;
-    }
-  
-    const user = this.currentUser();
-    if (!user) {
-      this.showError('Utilisateur non trouvé');
-      return;
-    }
-  
-    this.isSaving.set(true);
-  
-    // Créer un FormData pour envoyer toutes les données
-    const formData = new FormData();
-    
-    // ✅ Ajouter tous les champs du formulaire (incluant ceux modifiés)
-    const formValues = this.userForm.value;
-    
-    // Ajouter les champs obligatoires
-    if (formValues.nom) formData.append('nom', formValues.nom);
-    if (formValues.prenom) formData.append('prenom', formValues.prenom);
-    if (formValues.email) formData.append('email', formValues.email);
-    if (formValues.telephone) formData.append('telephone', formValues.telephone);
-    
-    // Ajouter les champs optionnels seulement s'ils ont une valeur
-    if (formValues.adress) formData.append('adress', formValues.adress);
-    
-    // ✅ Gérer le champ company correctement
-    if (formValues.company) {
-      // Si company existe et n'est pas vide, envoyer l'objet complet
-      const companyData = {
-        name: formValues.company
-      };
-      formData.append('company', JSON.stringify(companyData));
-    }
-    
-    // ✅ Ajouter les champs non modifiables mais nécessaires
-    if (user.date) formData.append('date', user.date);
-    if (user.lieunaissance) formData.append('lieunaissance', user.lieunaissance);
-    
-    // ✅ Gérer le profil correctement
-    let userProfile = '';
-    if (Array.isArray(user.profil) && user.profil.length > 0) {
-      userProfile = user.profil[0];
-    } else if (user.profils && typeof user.profils === 'string') {
-      userProfile = user.profils;
-    } else if (typeof user.profil === 'string') {
-      userProfile = user.profil as any;
-    }
-    
-    if (userProfile) {
-      formData.append('profil', userProfile);
-    }
-  
-    // ✅ Ajouter la photo si elle a été sélectionnée
-    if (this.selectedPhotoFile()) {
-      formData.append('photo', this.selectedPhotoFile()!, this.selectedPhotoFile()!.name);
-      console.log('📸 Photo ajoutée au FormData:', this.selectedPhotoFile()!.name);
-    }
-  
-    // 🔍 Debug: Afficher le contenu du FormData
-    console.log('📦 Contenu du FormData envoyé:');
-    formData.forEach((value, key) => {
-      console.log(`  ${key}:`, value instanceof File ? `[Fichier: ${value.name}]` : value);
-    });
-  
-    console.log('🚀 Envoi de la mise à jour pour l\'utilisateur:', user.id);
-  
-    // Utiliser l'ID de l'utilisateur connecté
-    this.authService.updateUserWithFormData(user.id, formData).subscribe({
-      next: (updatedUser) => {
-        console.log('✅ Profil mis à jour avec succès:', updatedUser);
-        
-        // Mettre à jour l'état local
-        this.currentUser.set(updatedUser);
-        
-        // Mettre à jour le formulaire avec les nouvelles données
-        this.populateForm(updatedUser);
-        
-        // Réinitialiser les états de la photo
-        this.selectedPhotoFile.set(null);
-        this.photoPreviewUrl.set(null);
-        this.photoLoadError.set(false);
-        
-        // Recharger la photo si elle existe
-        if (updatedUser.photo) {
-          this.loadUserPhoto();
-        }
-        
-        this.showSuccess('✅ Vos informations ont été mises à jour avec succès');
-        this.isSaving.set(false);
-      },
-      error: (error) => {
-        console.error('❌ Erreur mise à jour profil:', error);
-        console.error('Détails de l\'erreur:', error.error);
-        
-        // Message d'erreur plus détaillé
-        let errorMessage = 'Une erreur est survenue lors de la mise à jour';
-        
-        if (error.error?.message) {
-          errorMessage = error.error.message;
-        } else if (error.status === 413) {
-          errorMessage = 'La photo est trop volumineuse. Veuillez en choisir une plus petite.';
-        } else if (error.status === 400) {
-          errorMessage = 'Données invalides. Vérifiez les informations saisies.';
-          // Afficher les détails de validation s'ils existent
-          if (error.error?.errors) {
-            console.error('Erreurs de validation:', error.error.errors);
-          }
-        } else if (error.status === 401) {
-          errorMessage = 'Session expirée. Veuillez vous reconnecter.';
-        } else if (error.status === 404) {
-          errorMessage = 'Utilisateur non trouvé.';
-        }
-        
-        this.showError(errorMessage);
-        this.isSaving.set(false);
-      }
-    });
-  }
-/**
- * Recharge la photo de profil depuis le serveur
- */
-private loadUserPhoto(): void {
-  const user = this.currentUser();
-  if (user?.photo) {
-    // Forcer le rechargement en ajoutant un timestamp
-    const timestamp = new Date().getTime();
-    const photoUrl = `${environment.filebaseUrl}${user.photo}?t=${timestamp}`;
-    
-    // Précharger l'image pour éviter les erreurs d'affichage
-    const img = new Image();
-    img.onload = () => {
-      this.photoLoadError.set(false);
-      console.log('✅ Photo rechargée avec succès');
-    };
-    img.onerror = () => {
-      this.photoLoadError.set(true);
-      console.error('❌ Erreur lors du rechargement de la photo');
-    };
-    img.src = photoUrl;
-  }
-}
-  onCancel(): void {
-    const user = this.currentUser();
-    if (user) {
-      this.populateForm(user);
-      this.selectedPhotoFile.set(null);
-      this.photoPreviewUrl.set(null);
-      this.photoLoadError.set(false);
-      this.showInfo('Modifications annulées');
-    }
-  }
-
-  isFieldInvalid(fieldName: string): boolean {
-    const field = this.userForm.get(fieldName);
-    return !!(field && field.invalid && (field.dirty || field.touched));
-  }
-
-  getFieldError(fieldName: string): string {
-    const field = this.userForm.get(fieldName);
-    if (field?.errors) {
-      if (field.errors['required']) return 'Ce champ est requis';
-      if (field.errors['email']) return 'Email invalide';
-      if (field.errors['minlength']) return `Minimum ${field.errors['minlength'].requiredLength} caractères`;
-      if (field.errors['pattern']) return 'Format invalide';
-    }
-    return '';
-  }
-
-  private showSuccess(message: string): void {
-    this.successMessage.set(message);
-    this.errorMessage.set(null);
-    this.infoMessage.set(null);
-    setTimeout(() => this.successMessage.set(null), 5000);
-  }
-
-  private showError(message: string): void {
-    this.errorMessage.set(message);
-    this.successMessage.set(null);
-    this.infoMessage.set(null);
-    setTimeout(() => this.errorMessage.set(null), 5000);
-  }
-
-  private showInfo(message: string): void {
-    this.infoMessage.set(message);
-    this.successMessage.set(null);
-    this.errorMessage.set(null);
-    setTimeout(() => this.infoMessage.set(null), 5000);
-  }
-
-  closeMessage(): void {
-    this.successMessage.set(null);
-    this.errorMessage.set(null);
-    this.infoMessage.set(null);
+    return `${firstInitial}${lastInitial}`;
   }
 }

@@ -90,32 +90,20 @@
 <!-- Content based on active tab -->
 @switch (activeTab) {
   @case ('tasks') {
-    <app-task-board></app-task-board>
+    <!-- <app-task-board></app-task-board> -->
   }
-  @case ('team') {
+  <!-- @case ('team') {
     <app-team-list></app-team-list>
-  }
-  @case ('documents') {
-    <app-documents></app-documents>
-  }
-  @case ('lots') {
-    <app-lots-subcontractors></app-lots-subcontractors>
-  }
-  @case ('stock') {
-    <app-stock></app-stock>
-  }
-  @case ('etude-bet') {
-    <app-etude-bet></app-etude-bet>
-  }
+  } -->
   @case ('alert') {
     <app-project-alert></app-project-alert>
   }
   @case ('presentation') {
     <app-project-presentation></app-project-presentation>
   }
-  @case ('pointing-adress') {
+  <!-- @case ('pointing-adress') {
     <app-pointing-adress></app-pointing-adress>
-  }
+  } -->
   @default {
     <div>Sélectionnez un onglet</div>
   }
