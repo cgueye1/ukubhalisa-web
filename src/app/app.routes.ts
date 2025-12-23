@@ -20,7 +20,6 @@ import { RoleGuard } from '../guards/role.guard';
 // import { CompteComponent } from './features/compte/compte.component';
 
 import { AbonnementsComponent } from './features/abonnements/abonnements.component';
-import { DetailsReclamationComponent } from './features/details-reclamation/details-reclamation.component';
 import { DetailsUtilisateurComponent } from './features/details-utilisateur/details-utilisateur.component';
 import { DetailsAbonnementComponent } from './features/details-abonnement/details-abonnement.component';
 import { CompteComponent } from './features/compte/compte.component';
@@ -135,14 +134,7 @@ export const routes: Routes = [
       //   },
       // },
       
-      {
-        path: 'details-reclamation/:id',
-        component: DetailsReclamationComponent,
-        data: {
-          breadcrumb: 'details-reclamation',
-        },
-        canActivate: [RoleGuard]
-      },
+    
       {
         path: 'details-utilisateur/:id',
         component: DetailsUtilisateurComponent,
