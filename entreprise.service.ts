@@ -73,12 +73,91 @@ export interface EntrepriseResponse {
   first: boolean;
   empty: boolean;
 }
+// Ajoutez ces interfaces dans votre service/entreprise.service.ts
+export interface PropertyType {
+  id: number;
+  typeName: string;
+  hibernateLazyInitializer?: any;
+  parent: boolean;
+}
+
+export interface Authority {
+  authority: string;
+}
+
+export interface Promoter {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  password?: string;
+  adress: string;
+  technicalSheet: string | null;
+  profil: string;
+  activated: boolean;
+  notifiable: boolean;
+  telephone: string;
+  createdAt: number[];
+  funds: number;
+  note: number;
+  photo: string;
+  idCard: string | null;
+  dateOfBirth: string;
+  qrcode: string | null;
+  hibernateLazyInitializer?: any;
+  accountNonExpired: boolean;
+  credentialsNonExpired: boolean;
+  accountNonLocked: boolean;
+  authorities: Authority[];
+  username: string;
+  enabled: boolean;
+}
+
+export interface Picture {
+  id?: number;
+  url?: string;
+  description?: string;
+}
+
+export interface RealEstateProperty {
+  id: number;
+  name: string;
+  number: string;
+  address: string;
+  area: number;
+  latitude: string;
+  longitude: string;
+  reservationFee: number;
+  description: string;
+  numberOfLots: number;
+  discount: number;
+  budget: number;
+  level: number;
+  propertyType: PropertyType;
+  promoter: Promoter;
+  recipient: any;
+  pictures: Picture[];
+  plan: string;
+  legalStatus: string;
+  parentProperty: any;
+  status: string;
+  qrcode: string;
+  available: boolean;
+  // Ajoutez d'autres champs si nécessaire (price, numberOfRooms, etc.)
+  price?: number;
+  numberOfRooms?: number;
+  moaId?: number;
+  managerId?: number;
+}
+export interface EntrepriseDetailsResponse {
+  realEstateProperty: RealEstateProperty;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class EntrepriseService {
-  private baseUrl = 'https://innov.sn/preproduk/api';
+  private baseUrl = 'https://innov.sn/pointage/api';
 
   constructor(private http: HttpClient) { }
 
@@ -110,7 +189,12 @@ export class EntrepriseService {
     return this.http.put(`${this.baseUrl}/realestate/update/${id}`, formData);
   }
 
-  // Méthode utilitaire pour convertir un objet en FormData
+  getEntrepriseDetails(id: number): Observable<EntrepriseDetailsResponse> {
+    return this.http.get<EntrepriseDetailsResponse>(
+      `${this.baseUrl}/realestate/details/${id}`
+    );
+  }
+  
   createEntrepriseFormData(data: EntrepriseRequest): FormData {
     const formData = new FormData();
     
