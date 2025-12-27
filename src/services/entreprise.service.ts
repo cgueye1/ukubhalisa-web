@@ -78,7 +78,7 @@ export interface EntrepriseResponse {
   providedIn: 'root'
 })
 export class EntrepriseService {
-  private baseUrl = 'https://innov.sn/preproduk/api';
+  private baseUrl = 'https://innov.sn/pointage/api';
 
   constructor(private http: HttpClient) { }
 

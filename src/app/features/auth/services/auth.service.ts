@@ -33,7 +33,7 @@ interface ResetPasswordRequest {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'https://innov.sn/preproduk/api';
+  private apiUrl = 'https://innov.sn/pointage/api';
 
   // Signals pour l'état d'authentification
   private _currentUser = signal<User | null>(null);

@@ -262,9 +262,14 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   }
 
   onEntrepriseClick(entreprise: Entreprise): void {
+    console.log( entreprise.id)
+    
     if (entreprise?.id) {
-      this.router.navigate(['/detail-entreprise', entreprise.id]);
+      this.router.navigate(['/detailprojet', entreprise.id]);
     }
+   /* if (entreprise?.id) {
+      this.router.navigate(['/detail-entreprise', entreprise.id]);
+    }*/
   }
 
   deleteEntreprise(entreprise: Entreprise, event: Event): void {
@@ -298,7 +303,8 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   trackByEntrepriseId = (index: number, item: Entreprise): number => item.id || index;
 
   getImageUrl(plan: string | undefined): string {
-    if (!plan) return 'assets/images/architecte.png';
+
+    if (!plan) return `${this.filebaseUrl}${plan}`;
     if (plan.startsWith('http')) return plan;
     return `${this.filebaseUrl}${plan}`;
   }
