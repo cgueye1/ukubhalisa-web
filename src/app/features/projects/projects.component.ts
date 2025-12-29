@@ -23,6 +23,7 @@ import {
   timeout,
   takeUntil
 } from 'rxjs/operators';
+import { trigger, transition, style, animate } from '@angular/animations';
 
 import { 
   EntrepriseService, 
@@ -48,7 +49,27 @@ interface EntrepriseListState {
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   selector: 'app-projects',
   templateUrl: './projects.component.html',
-  styleUrls: ['./projects.component.css']
+  styleUrls: ['./projects.component.css'],
+  animations: [
+    trigger('fadeIn', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('200ms ease-in', style({ opacity: 1 }))
+      ]),
+      transition(':leave', [
+        animate('150ms ease-out', style({ opacity: 0 }))
+      ])
+    ]),
+    trigger('scaleIn', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'scale(0.9)' }),
+        animate('200ms ease-out', style({ opacity: 1, transform: 'scale(1)' }))
+      ]),
+      transition(':leave', [
+        animate('150ms ease-in', style({ opacity: 0, transform: 'scale(0.9)' }))
+      ])
+    ])
+  ]
 })
 export class ProjectsComponent implements OnInit, OnDestroy {
   readonly Math = Math;
@@ -90,6 +111,11 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     };
   });
 
+  // Modal de suppression
+  readonly showDeleteModal = signal<boolean>(false);
+  readonly entrepriseToDelete = signal<Entreprise | null>(null);
+  readonly isDeleting = signal<boolean>(false);
+
   private readonly searchSubject = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
 
@@ -104,6 +130,7 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.getPromoteurConnecter();
     this.setupSearchSubscription();
+    this.onRefresh();
   }
 
   ngOnDestroy(): void {
@@ -261,30 +288,87 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     }
   }
 
-  onEntrepriseClick(entreprise: Entreprise): void {
-    if (entreprise?.id) {
-      this.router.navigate(['/detail-entreprise', entreprise.id]);
+  // NOUVELLES MÉTHODES POUR LA PAGINATION
+
+  goToFirstPage(): void {
+    if (this.pagination().currentPage !== 0) {
+      this.updateState({ currentPage: 0 });
+      this.searchSubject.next(this.searchForm.get('search')?.value || '');
     }
   }
 
-  deleteEntreprise(entreprise: Entreprise, event: Event): void {
+  goToLastPage(): void {
+    const state = this.stateSignal();
+    const lastPage = state.totalPages - 1;
+    if (state.currentPage !== lastPage) {
+      this.updateState({ currentPage: lastPage });
+      this.searchSubject.next(this.searchForm.get('search')?.value || '');
+    }
+  }
+
+  // MÉTHODES POUR LE MODAL DE SUPPRESSION
+
+  openDeleteModal(entreprise: Entreprise, event: Event): void {
     event.stopPropagation();
+    this.entrepriseToDelete.set(entreprise);
+    this.showDeleteModal.set(true);
+  }
+
+  closeDeleteModal(): void {
+    if (!this.isDeleting()) {
+      this.showDeleteModal.set(false);
+      this.entrepriseToDelete.set(null);
+    }
+  }
+
+  confirmDelete(): void {
+    const entreprise = this.entrepriseToDelete();
     
     if (!entreprise?.id) return;
     
-    if (confirm(`Êtes-vous sûr de vouloir supprimer "${entreprise.name}" ?`)) {
-      this.entrepriseService.deleteEntreprise(entreprise.id).pipe(
-        takeUntil(this.destroy$)
-      ).subscribe({
-        next: () => {
-          alert('Entreprise supprimée avec succès');
-          this.onRefresh();
-        },
-        error: (error) => {
-          console.error('Erreur lors de la suppression:', error);
-          alert('Erreur lors de la suppression');
-        }
-      });
+    this.isDeleting.set(true);
+
+    this.entrepriseService.deleteEntreprise(entreprise.id).pipe(
+      timeout(this.REQUEST_TIMEOUT),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: () => {
+        this.isDeleting.set(false);
+        this.closeDeleteModal();
+        this.showSuccessNotification(`L'entreprise "${entreprise.name}" a été supprimée avec succès`);
+        this.onRefresh();
+      },
+      error: (error) => {
+        console.error('Erreur lors de la suppression:', error);
+        this.isDeleting.set(false);
+        this.showErrorNotification('Une erreur est survenue lors de la suppression');
+      }
+    });
+  }
+
+  // MÉTHODES DE NOTIFICATION (vous pouvez les personnaliser avec un service de toast/snackbar)
+
+  private showSuccessNotification(message: string): void {
+    // Implémentez ici votre système de notification
+    // Par exemple avec un service de toast ou snackbar
+    console.log('SUCCESS:', message);
+    // Exemple simple avec l'API navigateur:
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Succès', { body: message });
+    }
+  }
+
+  private showErrorNotification(message: string): void {
+    // Implémentez ici votre système de notification d'erreur
+    console.error('ERROR:', message);
+    this.updateState({ error: message });
+  }
+
+  // MÉTHODES EXISTANTES
+
+  onEntrepriseClick(entreprise: Entreprise): void {
+    if (entreprise?.id) {
+      this.router.navigate(['/detail-entreprise', entreprise.id]);
     }
   }
 

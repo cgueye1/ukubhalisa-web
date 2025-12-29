@@ -29,7 +29,7 @@
         <a 
           (click)="navigateTo('/projects', 'Projets', 'projects')" 
           [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200  ' + 
-                   (isActive('projects') ? 'bg-[#FF5C02] text-white' : '')"
+                   (isActive('projects') ? 'bg-[#1F375D] text-white' : '')"
         >
           <div class="flex items-center">
             <svg 
@@ -71,7 +71,7 @@
         <a 
           (click)="navigateTo('/mon-compte', 'Mon compte', 'mon-compte')" 
           [class]="'flex items-center justify-between py-3 px-4 rounded-lg cursor-pointer transition-all duration-200  ' + 
-                   (isActive('mon-compte') ? 'bg-[#FF5C02] text-white' : '')"
+                   (isActive('mon-compte') ? 'bg-[#1F375D] text-white' : '')"
         >
           <div class="flex items-center">
             <svg 
@@ -103,30 +103,30 @@
           </svg>
         </a>
       </li>
-
-      <!-- Separator -->
-      <li class="border-t border-gray-200 my-4"></li>
-
-      <!-- Déconnexion -->
-      <li>
-        <a 
-          (click)="logout()" 
-          class="flex items-center py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 text-red-600"
-        >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            class="w-5 h-5 mr-3" 
-            viewBox="0 0 24 24" 
-            fill="none"
-          >
-            <path 
-              d="M17 7L15.59 8.41L18.17 11H8V13H18.17L15.59 15.58L17 17L22 12L17 7ZM4 5H12V3H4C2.9 3 2 3.9 2 5V19C2 20.1 2.9 21 4 21H12V19H4V5Z" 
-              fill="currentColor"
-            />
-          </svg>
-          <span class="text-sm font-medium">Se déconnecter</span>
-        </a>
-      </li>
     </ul>
   </nav>
+
+  <!-- Separator -->
+  <div class="border-t border-gray-200 my-4"></div>
+
+  <!-- Déconnexion - fixé en bas -->
+  <div class="pb-4">
+    <a 
+      (click)="logout()" 
+      class="flex items-center py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 text-red-600 hover:bg-red-50"
+    >
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        class="w-5 h-5 mr-3" 
+        viewBox="0 0 24 24" 
+        fill="none"
+      >
+        <path 
+          d="M17 7L15.59 8.41L18.17 11H8V13H18.17L15.59 15.58L17 17L22 12L17 7ZM4 5H12V3H4C2.9 3 2 3.9 2 5V19C2 20.1 2.9 21 4 21H12V19H4V5Z" 
+          fill="currentColor"
+        />
+      </svg>
+      <span class="text-sm font-medium">Se déconnecter</span>
+    </a>
+  </div>
 </div>

@@ -2,6 +2,7 @@
   import { HttpClient, HttpParams, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
   import { Observable, throwError } from 'rxjs';
   import { catchError } from 'rxjs/operators';
+import { environment } from '../environments/environment';
 
   export interface BudgetResponse {
     id: number;
@@ -439,7 +440,7 @@ export interface CreateExpenseRequest {
   providedIn: 'root'
 })
 export class ProjectBudgetService {
-  private baseUrl = 'https://wakana.online/api/';
+  private baseUrl = `${environment.apiUrl}/`;
 
   constructor(private http: HttpClient) {}
 

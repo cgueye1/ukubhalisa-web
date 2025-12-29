@@ -69,7 +69,7 @@ export const routes: Routes = [
         canActivate: [RoleGuard]
       },
       {
-        path: 'detailprojet/:id',
+        path: 'detail-entreprise/:id',
         component: ProjectDetailHeaderComponent,
         data: { breadcrumb: 'Détail Projet' }
 

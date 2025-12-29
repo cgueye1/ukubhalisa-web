@@ -1,7 +1,7 @@
 <div class="container mx-auto flex justify-between items-center mb-4">
   <nav class="flex items-center space-x-2 text-gray-600">
     <ng-container *ngFor="let item of breadcrumbs; let last = last">
-      <a *ngIf="!last" [routerLink]="item.path" class="hover:text-gray-800 text-[#FF5C02]">
+      <a *ngIf="!last" [routerLink]="item.path" class="hover:text-gray-800 text-[#1F375D]">
         {{ item.label }}
       </a>
       <span *ngIf="last" class="font-medium text-[#777777]">{{ item.label }}</span>
@@ -17,7 +17,7 @@
         <img src="assets/images/question-circle.png" alt="Aide" />
       </div>
       <div class="text-left">
-        <div class="font-bold text-[#FF5C02] text-sm">Aide & Support</div>
+        <div class="font-bold text-[#1F375D] text-sm">Aide & Support</div>
       </div>
     </button>
   </div>

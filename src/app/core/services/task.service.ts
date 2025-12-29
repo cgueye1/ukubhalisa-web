@@ -37,7 +37,7 @@ export interface TaskFilters {
 })
 export class TaskService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = `${environment.apiUrl}/tasks`; // Utilisation de l'URL de l'environnement
+  private readonly baseUrl = `https://innov.sn/preproduk/api/tasks`; // Utilisation de l'URL de l'environnement
   private readonly authTokenKey = 'Token';
   
   // État réactif pour les tâches (optionnel)
